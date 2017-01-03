@@ -9,4 +9,4 @@ CLUSTERNAME it's the name of the RDS cluster"
 
 	exit 1
 fi
-aws rds describe-db-clusters --db-cluster-identifier $1 | jq '.DBClusters[].DBClusterMembers[] | select(.IsClusterWriter == false) | .DBInstanceIdentifier' | tr -d \" | sort
+aws rds describe-db-clusters --db-cluster-identifier $1 | jq '.DBClusters[].DBClusterMembers[] | select(.IsClusterWriter == false) | .DBInstanceIdentifier' | tr -d \" | sort -V
