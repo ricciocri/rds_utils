@@ -33,6 +33,9 @@ do
 		--Latency )
 			MaxLatency=$2
 			shift 2;;
+    --mail )
+			mail=$2
+			shift 2;;
 		-- )
       shift
       break;;
@@ -72,7 +75,7 @@ CheckLatency()
 	if (( ${latency} > ${MaxLatency} ))
   then
 		echo "Scale up ${ClusterName}"
-		if [ -z ${mail+x} ]
+		if [ ! -z ${mail+x} ]
 		  then
 		  mail -s "$ClusterName has ${latency} ms latency on Select, Scale It Up!" ${mail} < /dev/null
     fi
@@ -125,9 +128,9 @@ then
 	if (( ${averagemax} < ${MaxCPU} ))
   then
 		echo "Scale Down ${ClusterName}"
-		if [ -z ${mail+x} ]
+		if [ ! -z ${mail+x} ]
 		  then
-			mail -s "$ClusterName has an average of ${averagemax} CPU usage on ${replicanumber} Replicas, Scaling It Down!" monitor@doveconviene.com < /dev/null
+			mail -s "$ClusterName has an average of ${averagemax} CPU usage on ${replicanumber} Replicas, Scaling It Down!" ${mail} < /dev/null
     fi
 		$(${mydir}/scalereplica.sh ${ClusterName} ${index} arn:aws:sns:eu-west-1:828142006918:monitor ) > /dev/null
 		sleep 180
@@ -147,7 +150,7 @@ then
 	if (( ${averagemin} > ${MinCPU} ))
   then
 		echo "Scale Up ${ClusterName}"
-		if [ -z ${mail+x} ]
+		if [ ! -z ${mail+x} ]
 		  then
 			mail -s "$ClusterName has an average of ${averagemin} CPU usage on ${replicanumber} Replicas, Scaling It up!" ${mail} < /dev/null
     fi
