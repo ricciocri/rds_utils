@@ -114,6 +114,14 @@ writer=$(${mydir}/listclusterwriter.sh $ClusterName)
 #Get the actual number of readers before applying the changes.
 replicanumber=${#readers[@]}
 index=$(($replicanumber-1))
+
+#Check if something is ongoing on the last instance
+if [ $(${mydir}/showinstanceprop.sh ${readers[$index]} DBInstanceStatus) != "available" ]
+then
+	echo "Exit for ongoing operation on instance ${readers[$index]} "
+	exit 0
+fi
+
 cputotal=$(CheckCpu ${index} 0)
 #	average=$(echo "scale=2 ; ${cputotal} / $index" | bc)
 if (( ${replicanumber} > 1 ))
@@ -123,6 +131,8 @@ if (( ${replicanumber} > 1 ))
 		averagemax=$(( ${cputotal} / ${replicanumber} ))
 fi
 averagemin=$(( ${cputotal} / ${replicanumber} ))
+
+#Scale down the number of instances if needed
 if (( ${replicanumber} > ${MinInstances} ))
 then
 	if (( ${averagemax} < ${MaxCPU} ))
@@ -137,11 +147,9 @@ then
 		exit 0
   fi
 fi
-if [ $(${mydir}/showinstanceprop.sh ${readers[$index]} DBInstanceStatus) != "available" ]
-then
-	echo "Exit for ongoing operation on instance ${readers[$index]} "
-	exit 0
-elif (( ${replicanumber} < ${MaxInstances} ))
+
+#Scale up the number of instances if needed
+if (( ${replicanumber} < ${MaxInstances} ))
 then
 	if [ ! -z ${MaxLatency+x} ]
 		then
