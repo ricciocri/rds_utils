@@ -47,6 +47,11 @@ ScaleRDS()
   else
  		echo "Scale up ${ClusterName}"
 		newtotal=$((${local_replica}+1))
+		notfound=$(${mydir}/showinstanceprop.sh ${ClusterName}-${newtotal} 2>&1 |grep DBInstanceNotFound -c)
+		if (( ${notfound} == 0 ))
+		then
+		  newtotal=${newtotal}${newtotal}
+		fi
 		aws rds create-db-instance --db-instance-identifier ${ClusterName}-${newtotal} --db-cluster-identifier ${ClusterName} --db-instance-class ${writerclass} --db-parameter-group-name ${writerpamgroup} --publicly-accessible --engine aurora --tags "${writertags}"
 		if [ ! -z "$Contact" ]
 		then
