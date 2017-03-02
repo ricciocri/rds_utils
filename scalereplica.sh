@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 # This script scale the number of readers instances for CLUSTERNAME to DESIREDINSTANCENUMBER
 # it scales both up and down and bring the total number of readers to DESIREDINSTANCENUMBER
 # This script don't touch the writer instance
@@ -56,12 +56,15 @@ ScaleRDS()
 		if [ ! -z "$Contact" ]
 		then
 	  	aws cloudwatch put-metric-alarm --alarm-name HIGH-CPU-${ClusterName}-${newtotal} --alarm-description "Alarm when CPU exceeds 85 percent" --metric-name CPUUtilization --namespace AWS/RDS --statistic Average --period 300 --threshold 85 --comparison-operator GreaterThanThreshold  --dimensions "Name=DBInstanceIdentifier,Value=${ClusterName}-${newtotal}" --evaluation-periods 3 --alarm-actions ${Contact} --unit Percent
+      if [ "${writerclass}" == "db.t2.medium" ]
+			then
+				aws cloudwatch put-metric-alarm --alarm-name LOW-CPUCREDIT-${ClusterName}-${newtotal} --alarm-description "Alarm when CPU credits it's less than 60" --metric-name CPUCreditBalance --namespace AWS/RDS --statistic Average --period 300 --threshold 60 --comparison-operator LessThanOrEqualToThreshold  --dimensions "Name=DBInstanceIdentifier,Value=${ClusterName}-${newtotal}" --evaluation-periods 3 --alarm-actions ${Contact}
+      fi
 		fi
 		aws rds wait db-instance-available --db-instance-identifier ${ClusterName}-${newtotal}
 		ScaleRDS $newtotal $local_desired
 	fi
 }
-
 #Put in the array readers all the DbInstance replica of given ClusterName
 mapfile -t readers < <(${mydir}/listclusterreader.sh $ClusterName)
 
