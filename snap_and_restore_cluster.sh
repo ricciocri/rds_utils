@@ -8,9 +8,9 @@ AWS_CLI="docker run --rm -it -v $(pwd):/aws -v $HOME/.aws/:/root/.aws -v $HOME/.
 
 NEEDED_ENV="AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION"
 
-if [ -z ${AWS_ACCESS_KEY_ID+x} ]; then echo "AWS_ACCESS_KEY_ID is unset."; ENVERROR=true; fi
-if [ -z ${AWS_SECRET_ACCESS_KEY+x} ]; then echo "AWS_SECRET_ACCESS_KEY is unset"; ENVERROR=true; fi
-if [ -z ${AWS_DEFAULT_REGION+x} ]; then echo "AWS_DEFAULT_REGION is unset"; ENVERROR=true; fi
+if [ -z ${AWS_ACCESS_KEY_ID} ]; then echo "AWS_ACCESS_KEY_ID is unset."; ENVERROR=true; fi
+if [ -z ${AWS_SECRET_ACCESS_KEY} ]; then echo "AWS_SECRET_ACCESS_KEY is unset"; ENVERROR=true; fi
+if [ -z ${AWS_DEFAULT_REGION} ]; then echo "AWS_DEFAULT_REGION is unset"; ENVERROR=true; fi
 
 if [ $ENVERROR ]; then
 	echo "Please add to your environment the following variables: ${NEEDED_ENV}"; exit 1;
@@ -44,7 +44,7 @@ do
 done
 
 
-SNAP_ID=${RESTORE_PREFIX}${CLUSTER_NAME}${RESTORE_POSTFIX}
+SNAP_ID=${RESTORE_PREFIX}${CLUSTER_NAME}${RESTORE_POSTFIX}-$(date +"%m-%d-%y-%H-%M-%S")
 RESTORE_CLUSTER_NAME=${RESTORE_PREFIX}${CLUSTER_NAME}${RESTORE_POSTFIX}
 RESTORE_INSTANCE_NAME=${RESTORE_PREFIX}${INSTANCE_NAME}${RESTORE_POSTFIX}
 
