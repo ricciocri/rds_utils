@@ -88,7 +88,6 @@ sleep 10
 while [ "${exit_status}" != "0" ]
 do
   ${AWS_CLI} rds wait db-instance-available --db-instance-identifier=${RESTORE_INSTANCE_NAME}
-echo $(date) - exit_status 1="$?"
   exit_status="$?"
 done
 
@@ -96,11 +95,11 @@ done
 while [ "${exit_status}" != "0" ]
 do
   ${AWS_CLI} rds wait db-instance-available --db-instance-identifier=${RESTORE_INSTANCE_NAME}
-echo $(date) - exit_status 2="$?"
   exit_status="$?"
 done
 
 echo $(date) - ${AWS_CLI} rds modify-db-cluster --db-cluster-identifier=${RESTORE_CLUSTER_NAME} --db-cluster-parameter-group-name=${DB_CLUSTER_PARAMETER_GROUP} --vpc-security-group-ids ${SECURITY_GROUPS} --apply-immediately
+# TODO fix here, fail with docker
 ${AWS_CLI} rds modify-db-cluster --db-cluster-identifier=${RESTORE_CLUSTER_NAME} --db-cluster-parameter-group-name=${DB_CLUSTER_PARAMETER_GROUP} --vpc-security-group-ids ${SECURITY_GROUPS} --apply-immediately
 sleep 10
 
@@ -108,7 +107,6 @@ sleep 10
 while [ "${exit_status}" != "0" ]
 do
   ${AWS_CLI} rds wait db-instance-available --db-instance-identifier=${RESTORE_INSTANCE_NAME}
-echo $(date) - exit_status 3="$?"
   exit_status="$?"
 done
 
@@ -121,15 +119,6 @@ sleep 10
 while [ "${exit_status}" != "0" ]
 do
   ${AWS_CLI} rds wait db-instance-available --db-instance-identifier=${RESTORE_INSTANCE_NAME}
-echo $(date) - exit_status 4="$?"
-  exit_status="$?"
-done
-
-# wait instance available
-while [ "${exit_status}" != "0" ]
-do
-  ${AWS_CLI} rds wait db-instance-available --db-instance-identifier=${RESTORE_INSTANCE_NAME}
-echo $(date) - exit_status 5="$?"
   exit_status="$?"
 done
 
