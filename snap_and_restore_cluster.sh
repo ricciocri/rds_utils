@@ -16,6 +16,16 @@ if [ $ENVERROR ]; then
 	echo "Please add to your environment the following variables: ${NEEDED_ENV}"; exit 1;
 fi
 
+function wait_db_instance_available {
+    while [ "${exit_status}" != "0" ]
+    do
+      echo "$(date) - Wait availability of $1"
+      sleep 3
+      ${AWS_CLI} rds wait db-instance-available --db-instance-identifier=$1
+      local exit_status="$?"
+    done
+}
+
 PARSED_OPTIONS=$(getopt -n "$0" -o h --long "clustername:,rprefix:,rpostfix:,instancename:,instancetype:"  -- "$@")
 source $HOME/.bash_profile
 while true;
@@ -43,11 +53,9 @@ do
   esac
 done
 
-
 SNAP_ID=${RESTORE_PREFIX}${CLUSTER_NAME}${RESTORE_POSTFIX}-$(date +"%m-%d-%y-%H-%M-%S")
 RESTORE_CLUSTER_NAME=${RESTORE_PREFIX}${CLUSTER_NAME}${RESTORE_POSTFIX}
 RESTORE_INSTANCE_NAME=${RESTORE_PREFIX}${INSTANCE_NAME}${RESTORE_POSTFIX}
-SOURCE_INSTANCE_NAME=${INSTANCE_NAME}
 
 # Creates RDS cluster snapshot if not exists
 if [ $(${AWS_CLI} rds describe-db-cluster-snapshots --db-cluster-identifier=${CLUSTER_NAME} --snapshot-type=manual --db-cluster-snapshot-identifier=${SNAP_ID} | jq '.DBClusterSnapshots[0].Status' | tr -d '"') != "available" ]; then
@@ -57,69 +65,38 @@ if [ $(${AWS_CLI} rds describe-db-cluster-snapshots --db-cluster-identifier=${CL
 		sleep 2
 	done
 fi
-echo $(date) - "Snapshot ${SNAP_ID} is available"
+echo "$(date) - Snapshot ${SNAP_ID} is available"
 
 ENGINE=$(${AWS_CLI} rds describe-db-cluster-snapshots --db-cluster-identifier=${CLUSTER_NAME} --snapshot-type=manual --db-cluster-snapshot-identifier=${SNAP_ID} | jq '.DBClusterSnapshots[0].Engine' | tr -d '"')
 
 # Creates cluster from snapshot
-echo $(date) - "Starting restore of ${RESTORE_CLUSTER_NAME} from ${SNAP_ID} with engine ${ENGINE}"
+echo "$(date) - Starting restore of ${RESTORE_CLUSTER_NAME} from ${SNAP_ID} with engine ${ENGINE}"
 ${AWS_CLI} rds restore-db-cluster-from-snapshot --db-cluster-identifier=${RESTORE_CLUSTER_NAME} --snapshot-identifier=${SNAP_ID} --engine=${ENGINE}
 # Adds instance to that cluster
 ${AWS_CLI} rds create-db-instance --db-instance-identifier=${RESTORE_INSTANCE_NAME} --db-instance-class=${INSTANCE_TYPE} --engine=${ENGINE} --db-cluster-identifier=${RESTORE_CLUSTER_NAME}
 
-# wait instance available
-while [ "${exit_status}" != "0" ]
-do
-  ${AWS_CLI} rds wait db-instance-available --db-instance-identifier=${RESTORE_INSTANCE_NAME}
-  exit_status="$?"
-done
-echo $(date) - "Cluster ${RESTORE_CLUSTER_NAME} is available for customization"
+wait_db_instance_available ${RESTORE_INSTANCE_NAME}
+
+echo "$(date) - Cluster ${RESTORE_CLUSTER_NAME} is available for customization"
 
 # Customizes the cluster
 DB_CLUSTER_PARAMETER_GROUP=$(${AWS_CLI} rds describe-db-clusters --db-cluster-identifier=${CLUSTER_NAME} | jq '.DBClusters[0].DBClusterParameterGroup' | tr -d '"')
-SECURITY_GROUPS=$(${AWS_CLI} rds describe-db-clusters --db-cluster-identifier=${CLUSTER_NAME} | jq '.DBClusters[0].VpcSecurityGroups[].VpcSecurityGroupId')
-DB_PARAMETER_GROUP=$(${AWS_CLI} rds describe-db-instances --db-instance-identifier=${SOURCE_INSTANCE_NAME} | jq '.DBInstances[0].DBParameterGroups[].DBParameterGroupName'| tr -d '"')
+SECURITY_GROUPS=$(${AWS_CLI} rds describe-db-clusters --db-cluster-identifier=${CLUSTER_NAME} | jq '.DBClusters[0].VpcSecurityGroups[].VpcSecurityGroupId'| tr -d '"')
+DB_PARAMETER_GROUP=$(${AWS_CLI} rds describe-db-instances --db-instance-identifier=${INSTANCE_NAME} | jq '.DBInstances[0].DBParameterGroups[].DBParameterGroupName'| tr -d '"')
 
-# SET instance publicly accessible and parameter-group
+# SET instance publicly-accessible and parameter-group
+echo "$(date) - ${AWS_CLI} rds modify-db-instance --db-instance-identifier=${RESTORE_INSTANCE_NAME} --db-parameter-group-name=${DB_PARAMETER_GROUP} --publicly-accessible --apply-immediately"
 ${AWS_CLI} rds modify-db-instance --db-instance-identifier=${RESTORE_INSTANCE_NAME} --db-parameter-group-name=${DB_PARAMETER_GROUP} --publicly-accessible --apply-immediately
-sleep 10
+wait_db_instance_available ${RESTORE_INSTANCE_NAME}
 
-# wait instance available
-while [ "${exit_status}" != "0" ]
-do
-  ${AWS_CLI} rds wait db-instance-available --db-instance-identifier=${RESTORE_INSTANCE_NAME}
-  exit_status="$?"
-done
-
-# wait instance available
-while [ "${exit_status}" != "0" ]
-do
-  ${AWS_CLI} rds wait db-instance-available --db-instance-identifier=${RESTORE_INSTANCE_NAME}
-  exit_status="$?"
-done
-
-echo $(date) - ${AWS_CLI} rds modify-db-cluster --db-cluster-identifier=${RESTORE_CLUSTER_NAME} --db-cluster-parameter-group-name=${DB_CLUSTER_PARAMETER_GROUP} --vpc-security-group-ids ${SECURITY_GROUPS} --apply-immediately
-# TODO fix here, fail with docker
+# SET cluster db-cluster-parameter-group and vpc-security-groups
+echo "$(date) - ${AWS_CLI} rds modify-db-cluster --db-cluster-identifier=${RESTORE_CLUSTER_NAME} --db-cluster-parameter-group-name=${DB_CLUSTER_PARAMETER_GROUP} --vpc-security-group-ids ${SECURITY_GROUPS} --apply-immediately"
 ${AWS_CLI} rds modify-db-cluster --db-cluster-identifier=${RESTORE_CLUSTER_NAME} --db-cluster-parameter-group-name=${DB_CLUSTER_PARAMETER_GROUP} --vpc-security-group-ids ${SECURITY_GROUPS} --apply-immediately
-sleep 10
+wait_db_instance_available ${RESTORE_INSTANCE_NAME}
 
-# wait instance available
-while [ "${exit_status}" != "0" ]
-do
-  ${AWS_CLI} rds wait db-instance-available --db-instance-identifier=${RESTORE_INSTANCE_NAME}
-  exit_status="$?"
-done
-
-# reboot
-echo $(date) - ${AWS_CLI} rds reboot-db-instance --db-instance-identifier=${RESTORE_INSTANCE_NAME}
+# Reboot instance
+echo "$(date) - ${AWS_CLI} rds reboot-db-instance --db-instance-identifier=${RESTORE_INSTANCE_NAME}"
 ${AWS_CLI} rds reboot-db-instance --db-instance-identifier=${RESTORE_INSTANCE_NAME}
-sleep 10
+wait_db_instance_available ${RESTORE_INSTANCE_NAME}
 
-# wait instance available
-while [ "${exit_status}" != "0" ]
-do
-  ${AWS_CLI} rds wait db-instance-available --db-instance-identifier=${RESTORE_INSTANCE_NAME}
-  exit_status="$?"
-done
-
-echo $(date) - "Cluster ${RESTORE_CLUSTER_NAME} is available"
+echo "$(date) - Cluster ${RESTORE_CLUSTER_NAME} is available"
