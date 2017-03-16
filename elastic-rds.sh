@@ -1,9 +1,10 @@
-#!/bin/bash -x
+#!/usr/bin/env bash
+set -x
 # This script scale the number of readers instances for CLUSTERNAME to DESIREDINSTANCENUMBER
 # it scales both up and down and bring the total number of readers to DESIREDINSTANCENUMBER
 # This script don't touch the writer instance
 
-source $(dirname $0)/config.sh
+source "$(dirname $0)/config.sh"
 MinCPU=75
 MaxCPU=20
 Statistics=Maximum

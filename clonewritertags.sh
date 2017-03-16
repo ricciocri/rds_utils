@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Take as input the name of the RDS CLUSTER and clone all tha amazon tags
 # associated to the writer instance to all the readers
 
