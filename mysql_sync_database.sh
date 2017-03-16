@@ -54,13 +54,11 @@ mysql --host=${SOURCE_MYSQL_HOST} --user=${DB_USER} --password=${DB_PASS} -e 'sh
 echo "CHECK connection and grants to ${TARGET_MYSQL_HOST}"
 mysql --host=${TARGET_MYSQL_HOST} --user=${DB_USER} --password=${DB_PASS} -e 'show tables;' ${DB}
 
-exit 0
 
 echo "Starting migration"
 for TABLE in ${ALLTABLES[@]}
 do
-    echo "Migrating table $TABLE..."
-	mysqldump --host=${SOURCE_MYSQL_HOST} --user=${DB_USER} --password=${DB_PASS} ${DUMP_OPTS} ${DB} ${TABLE} | mysql --host=${TARGET_MYSQL_HOST} --user=dbsync --password=${dbsync} $DB
-
+	echo "Migrating $TABLE"
+	mysqldump --host=${SOURCE_MYSQL_HOST} --user=${DB_USER} --password=${DB_PASS} ${DUMP_OPTS} ${DB} ${TABLE} | mysql --host=${TARGET_MYSQL_HOST} --user=dbsync --password=${DB_PASS} $DB
 done
 echo "done."
