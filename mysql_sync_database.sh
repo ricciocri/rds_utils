@@ -56,7 +56,7 @@ mysql --host=${TARGET_MYSQL_HOST} --user=${DB_USER} --password=${DB_PASS} -e 'sh
 
 
 echo "Starting migration"
-for TABLE in ${ALLTABLES[@]}
+for TABLE in ${TABLES}
 do
 	echo "Migrating $TABLE"
 	mysqldump --host=${SOURCE_MYSQL_HOST} --user=${DB_USER} --password=${DB_PASS} ${DUMP_OPTS} ${DB} ${TABLE} | mysql --host=${TARGET_MYSQL_HOST} --user=dbsync --password=${DB_PASS} $DB
