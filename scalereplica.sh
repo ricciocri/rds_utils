@@ -42,6 +42,10 @@ ScaleRDS()
 		index=$(($local_replica-1))
 		aws rds delete-db-instance --db-instance-identifier ${readers[$index]}
 		aws cloudwatch delete-alarms --alarm-name HIGH-CPU-${readers[$index]}
+		if [ "${writerclass}" == "db.t2.medium" ]
+		then
+			aws cloudwatch delete-alarms --alarm-name LOW-CPUCREDIT-${ClusterName}-${newtotal}
+		fi
     aws rds wait db-instance-deleted --db-instance-identifier ${readers[$index]}
 		ScaleRDS $index $local_desired
   else
