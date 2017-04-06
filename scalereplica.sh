@@ -56,7 +56,12 @@ ScaleRDS()
 		then
 		  newtotal=${newtotal}${newtotal}
 		fi
-		aws rds create-db-instance --db-instance-identifier ${ClusterName}-${newtotal} --db-cluster-identifier ${ClusterName} --db-instance-class ${writerclass} --db-parameter-group-name ${writerpamgroup} --publicly-accessible --engine aurora --tags "${writertags}"
+		if ${writerpublic}
+		then
+		  aws rds create-db-instance --db-instance-identifier ${ClusterName}-${newtotal} --db-cluster-identifier ${ClusterName} --db-instance-class ${writerclass} --db-parameter-group-name ${writerpamgroup} --publicly-accessible --engine aurora --tags "${writertags}"
+    else
+			aws rds create-db-instance --db-instance-identifier ${ClusterName}-${newtotal} --db-cluster-identifier ${ClusterName} --db-instance-class ${writerclass} --db-parameter-group-name ${writerpamgroup} --no-publicly-accessible --engine aurora --tags "${writertags}"
+    fi
 		if [ ! -z "$Contact" ]
 		then
 	  	aws cloudwatch put-metric-alarm --alarm-name HIGH-CPU-${ClusterName}-${newtotal} --alarm-description "Alarm when CPU exceeds 85 percent" --metric-name CPUUtilization --namespace AWS/RDS --statistic Average --period 300 --threshold 85 --comparison-operator GreaterThanThreshold  --dimensions "Name=DBInstanceIdentifier,Value=${ClusterName}-${newtotal}" --evaluation-periods 3 --alarm-actions ${Contact} --unit Percent
@@ -78,6 +83,7 @@ writerarn=$(${mydir}/showinstanceprop.sh ${writer} DBInstanceArn)
 writerclass=$(${mydir}/showinstanceprop.sh ${writer} DBInstanceClass)
 writerpamgroup=$(${mydir}/showinstanceprop.sh ${writer} DBParameterGroups[].DBParameterGroupName)
 writertags=$(${mydir}/gettags.sh ${writerarn} | jq .TagList)
+writerpublic=$(${mydir}/showinstanceprop.sh ${writer} PubliclyAccessible)
 
 #Get the actual number of readers before applying the changes.
 replicanumber=${#readers[@]}
