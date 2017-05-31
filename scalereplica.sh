@@ -51,10 +51,10 @@ ScaleRDS()
   else
  		echo "Scale up ${ClusterName}"
 		newtotal=$((${local_replica}+1))
+		realtotal=${newtotal}
 		notfound=$(${mydir}/showinstanceprop.sh ${ClusterName}-${newtotal} 2>&1 |grep DBInstanceNotFound -c)
 		if (( ${notfound} == 0 ))
 		then
-			faketotal=${newtotal}
 		  newtotal=${newtotal}${newtotal}
 		fi
 		if ${writerpublic}
@@ -72,7 +72,7 @@ ScaleRDS()
       fi
 		fi
 		aws rds wait db-instance-available --db-instance-identifier ${ClusterName}-${newtotal}
-		newtotal=${faketotal}
+		newtotal=${realtotal}
 		ScaleRDS $newtotal $local_desired
 	fi
 }
