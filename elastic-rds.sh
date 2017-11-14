@@ -7,8 +7,8 @@ set -x
 source "$(dirname $0)/config.sh"
 MinCPU=75
 MaxCPU=20
-Statistics=Maximum
-StatisticsMin=Maximum
+Statistics=Average
+StatisticsMin=Average
 
 PARSED_OPTIONS=$(getopt -n "$0" -o h --long "clustername:,mininst:,maxinst:,CpuLow:,CpuHigh:,Latency:,mail:"  -- "$@")
 eval set -- "$PARSED_OPTIONS"
