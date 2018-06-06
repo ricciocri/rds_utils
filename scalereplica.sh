@@ -84,7 +84,7 @@ writer=$(${mydir}/listclusterwriter.sh $ClusterName)
 writerarn=$(${mydir}/showinstanceprop.sh ${writer} DBInstanceArn)
 writerclass=$(${mydir}/showinstanceprop.sh ${writer} DBInstanceClass)
 writerpamgroup=$(${mydir}/showinstanceprop.sh ${writer} DBParameterGroups[].DBParameterGroupName)
-writertags=$(${mydir}/gettags.sh ${writerarn} | jq .TagList)
+writertags=$(${mydir}/gettags.sh ${writerarn}| jq .TagList| jq 'del(.[]| select(.Key == "aws:cloudformation:logical-id"))|del(.[]|select(.Key == "aws:cloudformation:stack-id"))|del(.[]|select(.Key == "aws:cloudformation:stack-name"))'
 writerpublic=$(${mydir}/showinstanceprop.sh ${writer} PubliclyAccessible)
 
 #Get the actual number of readers before applying the changes.
