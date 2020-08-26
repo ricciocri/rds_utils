@@ -59,6 +59,6 @@ echo "Starting migration"
 for TABLE in ${TABLES}
 do
 	echo "Migrating $TABLE"
-	mysqldump --host=${SOURCE_MYSQL_HOST} --user=${DB_USER} --password=${DB_PASS} ${DUMP_OPTS} ${DB} ${TABLE} | mysql --host=${TARGET_MYSQL_HOST} --user=dbsync --password=${DB_PASS} $DB
+	mysqldump --host=${SOURCE_MYSQL_HOST} --user=${DB_USER} --password=${DB_PASS} ${DUMP_OPTS} ${DB} ${TABLE} | mysql --host=${TARGET_MYSQL_HOST} --user=${DB_USER} --password=${DB_PASS} --init-command="SET SESSION FOREIGN_KEY_CHECKS=0; SET SESSION UNIQUE_CHECKS=0;" $DB
 done
 echo "done."
