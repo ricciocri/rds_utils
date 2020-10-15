@@ -8,7 +8,7 @@ if ! type mapfile > /dev/null 2>&1 ; then
 fi
 set -e
 
-PARSED_OPTIONS=$(getopt -n "$0" -o h --long "db:,user:,password:,tables:"  -- "$@")
+PARSED_OPTIONS=$(getopt -n "$0" -o h --long "db:,dbuser:,dbpassword:,tables:"  -- "$@")
 
 while true;
 do
@@ -16,10 +16,10 @@ do
     --db )
       Db=$2
       shift 2;;
-    --user )
+    --dbuser )
   	  DbUser=$2
   	  shift 2;;
-  	--password )
+  	--dbpassword )
   	  DbPassword=$2
   	  shift 2;;
   	--tables )
@@ -55,10 +55,10 @@ if [[ -z $DbUser ]] || [[ -z $DbPassword ]] || [[ -z $Db ]] || [[ -z $Tables ]] 
 then
 	echo "This script migrate tables in Database Db from RDS Aurora Mysql Source Host to RDS Aurora Mysql Target Host
 
- Usage: $0 --user DbUser --password DbPassword --db Db --tables tables_list
+ Usage: $0 --dbuser DbUser --dbpassword DbPassword --db Db --tables tables_list
 
  examples:
- $0 --user dbuser --password dbpassword --db database --tables a b c d
+ $0 --dbuser dbuser --dbpassword dbpassword --db database --tables a b c d
  "
 	exit 1
 fi
@@ -67,7 +67,7 @@ DumpOpts="--ignore-table=mysql.event --hex-blob --add-drop-table --single-transa
 
 # check mysql connection
 if
-  mysql --host=${OldClusterEndpoint} --user=${DbUser} --password=${DbPassword} -e 'show tables;' ${Db} 2>&1 >/dev/null
+  mysql --host=${OldClusterEndpoint} --dbuser=${DbUser} --dbpassword=${DbPassword} -e 'show tables;' ${Db} 2>&1 >/dev/null
 then
 	echo "$(date +"%Y-%m-%d %H:%M:%S") -- Check mysql connection to OldClusterEndpoint $OldClusterEndpoint, OK."
 else
@@ -76,7 +76,7 @@ else
 fi
 
 if
-  mysql --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} -e 'show tables;' ${Db} 2>&1 >/dev/null
+  mysql --host=${NewClusterEndpoint} --dbuser=${DbUser} --dbpassword=${DbPassword} -e 'show tables;' ${Db} 2>&1 >/dev/null
 then
 	echo "$(date +"%Y-%m-%d %H:%M:%S") -- Check mysql connection to NewClusterEndpoint $NewClusterEndpoint, OK."
 else
@@ -88,7 +88,7 @@ echo "$(date +"%Y-%m-%d %H:%M:%S") -- Starting Tables migration ...."
 for Table in ${Tables}
 do
   if
-  	mysqldump --host=${OldClusterEndpoint} --user=${DbUser} --password=${DbPassword} ${DumpOpts} ${Db} ${Table} | mysql --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} --init-command="SET SESSION FOREIGN_KEY_CHECKS=0; SET SESSION UNIQUE_CHECKS=0;" $Db
+  	mysqldump --host=${OldClusterEndpoint} --dbuser=${DbUser} --dbpassword=${DbPassword} ${DumpOpts} ${Db} ${Table} | mysql --host=${NewClusterEndpoint} --dbuser=${DbUser} --dbpassword=${DbPassword} --init-command="SET SESSION FOREIGN_KEY_CHECKS=0; SET SESSION UNIQUE_CHECKS=0;" $Db
   then
   	echo "$(date +"%Y-%m-%d %H:%M:%S") -- Migration of Table $Table, OK."
   else
