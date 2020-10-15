@@ -51,17 +51,17 @@ if [[ -z $DbUser ]] || [[ -z $DbPassword ]] || [[ -z $UserExcluded ]] || [[ -z $
 then
 	echo "This script migrate users from RDS Aurora Mysql Source Host OldClusterEndpoint to RDS Aurora Mysql Target Host NewClusterEndpoint, except to user rdsadmin and UserExcluded
 
- Usage: $0 --dbuser DbUser --password DbPassword --dbuserexcluded UserExcluded
+ Usage: $0 --dbuser DbUser --dbpassword DbPassword --dbuserexcluded UserExcluded
 
  examples:
- $0 --dbuser dbuser --password dbpassword --dbuserexcluded dbuserexcluded
+ $0 --dbuser dbuser --dbpassword dbpassword --dbuserexcluded dbuserexcluded
  "
 	exit 1
 fi
 
 # check mysql connection
 if
-  mysql --host=${NewClusterEndpoint} --dbuser=${DbUser} --password=${DbPassword} -e "SHOW DATABASES  LIKE 'foo'" 2>&1 >/dev/null
+  mysql --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} -e "SHOW DATABASES  LIKE 'foo'" 2>&1 >/dev/null
 then
 	echo "$(date +"%Y-%m-%d %H:%M:%S") -- Check mysql connection to NewClusterEndpoint $NewClusterEndpoint, OK."
 else
@@ -70,7 +70,7 @@ else
 fi
 
 if
-  mysql --host=${OldClusterEndpoint} --dbuser=${DbUser} --password=${DbPassword} -e "SHOW DATABASES  LIKE 'foo'" 2>&1 >/dev/null
+  mysql --host=${OldClusterEndpoint} --user=${DbUser} --password=${DbPassword} -e "SHOW DATABASES  LIKE 'foo'" 2>&1 >/dev/null
 then
 	echo "$(date +"%Y-%m-%d %H:%M:%S") -- Check mysql connection to OldClusterEndpoint $OldClusterEndpoint, OK."
 else
@@ -80,9 +80,9 @@ fi
 
 # drop user on NewClusterEndpoint NOT UsersExcluded and rdsadmin
 if
-  mysql -B -N --host=${NewClusterEndpoint} --dbuser=${DbUser} --password=${DbPassword} -e "SELECT CONCAT('\'', user,'\'@\'', host, '\'') FROM user WHERE user != 'rdsadmin' AND user != '${UserExcluded}' AND user != ''" mysql > target_mysql_all_users.txt && \
-  while read line; do mysql -B -N --host=${NewClusterEndpoint} --dbuser=${DbUser} --password=${DbPassword} -e "DROP USER $line"; done < target_mysql_all_users.txt && \
-  mysql --host=${NewClusterEndpoint} --dbuser=${DbUser} --password=${DbPassword} -e "FLUSH PRIVILEGES" && \
+  mysql -B -N --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} -e "SELECT CONCAT('\'', user,'\'@\'', host, '\'') FROM user WHERE user != 'rdsadmin' AND user != '${UserExcluded}' AND user != ''" mysql > target_mysql_all_users.txt && \
+  while read line; do mysql -B -N --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} -e "DROP USER $line"; done < target_mysql_all_users.txt && \
+  mysql --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} -e "FLUSH PRIVILEGES" && \
   rm -f target_mysql_all_users.txt
 then
   echo "$(date +"%Y-%m-%d %H:%M:%S") -- Drop user on NewClusterEndpoint $NewClusterEndpoint, OK."
@@ -93,8 +93,8 @@ fi
 
 # export user from OldClusterEndpoint
 if
-  mysql -B -N --host=${OldClusterEndpoint} --dbuser=${DbUser} --password=${DbPassword} -e "SELECT CONCAT('\'', user,'\'@\'', host, '\'') FROM user WHERE user != 'rdsadmin' AND user != '${UserExcluded}' AND user != ''" mysql > source_mysql_all_users.txt && \
-  while read line; do mysql -B -N --host=${OldClusterEndpoint} --dbuser=${DbUser} --password=${DbPassword} -e "SHOW GRANTS FOR $line"; done < source_mysql_all_users.txt > source_mysql_all_users.sql && \
+  mysql -B -N --host=${OldClusterEndpoint} --user=${DbUser} --password=${DbPassword} -e "SELECT CONCAT('\'', user,'\'@\'', host, '\'') FROM user WHERE user != 'rdsadmin' AND user != '${UserExcluded}' AND user != ''" mysql > source_mysql_all_users.txt && \
+  while read line; do mysql -B -N --host=${OldClusterEndpoint} --user=${DbUser} --password=${DbPassword} -e "SHOW GRANTS FOR $line"; done < source_mysql_all_users.txt > source_mysql_all_users.sql && \
   sed -i 's/$/;/' source_mysql_all_users.sql
 then
   echo "$(date +"%Y-%m-%d %H:%M:%S") -- Export user from OldClusterEndpoint $OldClusterEndpoint, OK."
@@ -105,8 +105,8 @@ fi
 
 # import user to NewClusterEndpoint
 if
-  mysql --host=${NewClusterEndpoint} --dbuser=${DbUser} --password=${DbPassword} < source_mysql_all_users.sql && \
-  mysql --host=${NewClusterEndpoint} --dbuser=${DbUser} --password=${DbPassword} -e "FLUSH PRIVILEGES" && \
+  mysql --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} < source_mysql_all_users.sql && \
+  mysql --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} -e "FLUSH PRIVILEGES" && \
   rm -f source_mysql_all_users.txt source_mysql_all_users.sql
 then
   echo "$(date +"%Y-%m-%d %H:%M:%S") -- Import user to NewClusterEndpoint $NewClusterEndpoint, OK."

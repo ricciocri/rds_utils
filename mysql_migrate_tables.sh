@@ -67,7 +67,7 @@ DumpOpts="--ignore-table=mysql.event --hex-blob --add-drop-table --single-transa
 
 # check mysql connection
 if
-  mysql --host=${OldClusterEndpoint} --dbuser=${DbUser} --dbpassword=${DbPassword} -e 'show tables;' ${Db} 2>&1 >/dev/null
+  mysql --host=${OldClusterEndpoint} --user=${DbUser} --password=${DbPassword} -e 'show tables;' ${Db} 2>&1 >/dev/null
 then
 	echo "$(date +"%Y-%m-%d %H:%M:%S") -- Check mysql connection to OldClusterEndpoint $OldClusterEndpoint, OK."
 else
@@ -76,7 +76,7 @@ else
 fi
 
 if
-  mysql --host=${NewClusterEndpoint} --dbuser=${DbUser} --dbpassword=${DbPassword} -e 'show tables;' ${Db} 2>&1 >/dev/null
+  mysql --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} -e 'show tables;' ${Db} 2>&1 >/dev/null
 then
 	echo "$(date +"%Y-%m-%d %H:%M:%S") -- Check mysql connection to NewClusterEndpoint $NewClusterEndpoint, OK."
 else
@@ -88,7 +88,7 @@ echo "$(date +"%Y-%m-%d %H:%M:%S") -- Starting Tables migration ...."
 for Table in ${Tables}
 do
   if
-  	mysqldump --host=${OldClusterEndpoint} --dbuser=${DbUser} --dbpassword=${DbPassword} ${DumpOpts} ${Db} ${Table} | mysql --host=${NewClusterEndpoint} --dbuser=${DbUser} --dbpassword=${DbPassword} --init-command="SET SESSION FOREIGN_KEY_CHECKS=0; SET SESSION UNIQUE_CHECKS=0;" $Db
+  	mysqldump --host=${OldClusterEndpoint} --user=${DbUser} --password=${DbPassword} ${DumpOpts} ${Db} ${Table} | mysql --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} --init-command="SET SESSION FOREIGN_KEY_CHECKS=0; SET SESSION UNIQUE_CHECKS=0;" $Db
   then
   	echo "$(date +"%Y-%m-%d %H:%M:%S") -- Migration of Table $Table, OK."
   else
