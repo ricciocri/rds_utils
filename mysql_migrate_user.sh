@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -x
+#set -x
 # This script migrate users from Source to Target without usersexcluded
 
 if ! type mapfile > /dev/null 2>&1 ; then
