@@ -178,7 +178,7 @@ if
 	--publicly-accessible \
 	--db-parameter-group-name ${OldClusterInstanceParameterGroup} \
 	--no-cli-pager \
-	--tags "${AllTags}"
+	--tags "${AllTags}" > /dev/null 2>&1
 then
 	echo "$(date +"%Y-%m-%d %H:%M:%S") -- Creation of DBInstance $NewInstanceName started...."
 else
