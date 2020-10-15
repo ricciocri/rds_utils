@@ -7,7 +7,7 @@ if ! type mapfile > /dev/null 2>&1 ; then
 	exit 2
 fi
 
-PARSED_OPTIONS=$(getopt -n "$0" -o h --long "dbuser:,dbpassword:,dbusersexcluded:"  -- "$@")
+PARSED_OPTIONS=$(getopt -n "$0" -o h --long "dbuser:,dbpassword:,dbuserexcluded1:,dbuserexcluded2:"  -- "$@")
 eval set -- "$PARSED_OPTIONS"
 
 while true;
@@ -19,8 +19,11 @@ do
   	--dbpassword )
   	  DbPassword=$2
   	  shift 2;;
-    --dbusersexcluded )
-      UsersExcluded=$2
+    --dbuserexcluded1 )
+      UserExcluded1=$2
+      shift 2;;
+    --dbuserexcluded2 )
+      UserExcluded2=$2
       shift 2;;
 		-- )
       shift
@@ -47,14 +50,14 @@ echo OldClusterName=${OldClusterName}
 echo OldInstanceName=${OldInstanceName}
 echo DeleteOldCluster=${DeleteOldCluster}
 
-if [[ -z $DbUser ]] || [[ -z $DbPassword ]] || [[ -z $UsersExcluded ]] || [[ -z $NewClusterEndpoint ]] || [[ -z $OldClusterEndpoint ]]
+if [[ -z $DbUser ]] || [[ -z $DbPassword ]] || [[ -z $UserExcluded1 ]] || [[ -z $UserExcluded2 ]] || [[ -z $NewClusterEndpoint ]] || [[ -z $OldClusterEndpoint ]]
 then
-	echo "This script migrate users from RDS Aurora Mysql Source Host OldClusterEndpoint to RDS Aurora Mysql Target Host NewClusterEndpoint, except to user rdsadmin and list of Users to Exclude in this format  \'userexcluded1\',\'userexcluded2\'
+	echo "This script migrate users from RDS Aurora Mysql Source Host OldClusterEndpoint to RDS Aurora Mysql Target Host NewClusterEndpoint, except to user rdsadmin and Users to Exclude
 
- Usage: $0 --dbuser DbUser --dbpassword DbPassword --dbusersexcluded UsersExcluded
+ Usage: $0 --dbuser DbUser --dbpassword DbPassword --dbuserexcluded1 userexcluded1 --dbuserexcluded2 userexcluded2
 
  examples:
- $0 --dbuser dbuser --dbpassword dbpassword --dbusersexcluded \'userexcluded1\',\'userexcluded2\'
+ $0 --dbuser dbuser --dbpassword dbpassword --dbuserexcluded1 user1 --dbuserexcluded2 user2
  "
 	exit 1
 fi
@@ -82,7 +85,7 @@ fi
 
 # drop user on NewClusterEndpoint NOT UsersExcluded and rdsadmin
 if
-  mysql -B -N --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} -e "SELECT CONCAT('\'', user,'\'@\'', host, '\'') FROM user WHERE user not in ('rdsadmin','',${UsersExcluded})" mysql > target_mysql_all_users.txt && \
+  mysql -B -N --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} -e "SELECT CONCAT('\'', user,'\'@\'', host, '\'') FROM user WHERE user not in ('rdsadmin','${UserExcluded1}','${UserExcluded2}','')" mysql > target_mysql_all_users.txt && \
   while read line; do mysql -B -N --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} -e "DROP USER $line"; done < target_mysql_all_users.txt && \
   mysql --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} -e "FLUSH PRIVILEGES" && \
   rm -f target_mysql_all_users.txt
@@ -98,7 +101,7 @@ echo "$(date +"%Y-%m-%d %H:%M:%S") -- Starting user and db Tables migration ....
 for Table in user db
 do
   if
-  	mysqldump --host=${OldClusterEndpoint} --user=${DbUser} --password=${DbPassword} ${DumpOpts} mysql --tables ${Table} --where="user not in ('rdsadmin','',${UsersExcluded});"| mysql --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} --init-command="SET SESSION FOREIGN_KEY_CHECKS=0; SET SESSION UNIQUE_CHECKS=0;" mysql && \
+  	mysqldump --host=${OldClusterEndpoint} --user=${DbUser} --password=${DbPassword} ${DumpOpts} mysql --tables ${Table} --where="user not in ('rdsadmin','${UserExcluded1}','${UserExcluded2}','');"| mysql --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} --init-command="SET SESSION FOREIGN_KEY_CHECKS=0; SET SESSION UNIQUE_CHECKS=0;" mysql && \
     mysql --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} -e "FLUSH PRIVILEGES"
   then
   	echo "$(date +"%Y-%m-%d %H:%M:%S") -- Migration of Table $Table, OK."
