@@ -108,6 +108,7 @@ if
   --vpc-security-group-ids ${OldClusterDbSecurityGroup} \
   --db-subnet-group-name ${OldClusterDbSubnetGroup} \
   --db-cluster-parameter-group-name ${OldClusterDbClusterParameterGroup} \
+  --enable-cloudwatch-logs-exports audit \
   --kms-key-id ${KsmKeyId} \
   --deletion-protection \
   --backtrack-window 0 \
