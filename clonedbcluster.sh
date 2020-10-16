@@ -91,8 +91,9 @@ else
 	DeleteOldCluster=true
 fi
 
-DbSecurityGroup=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${OldClusterNameWithDate}| jq -r '.DBClusters[].VpcSecurityGroups[].VpcSecurityGroupId'|tr '\r\n' ' ')
-DbSubnetGroup=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${OldClusterNameWithDate}| jq -r '.DBClusters[].DBSubnetGroup')
+OldClusterDbSecurityGroup=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${OldClusterNameWithDate}| jq -r '.DBClusters[].VpcSecurityGroups[].VpcSecurityGroupId'|tr '\r\n' ' ')
+OldClusterDbSubnetGroup=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${OldClusterNameWithDate}| jq -r '.DBClusters[].DBSubnetGroup')
+OldClusterDbClusterParameterGroup=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${OldClusterNameWithDate}| jq -r '.DBClusters[].DBClusterParameterGroup')
 OldClusterInstanceWriter=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${OldClusterNameWithDate}| jq -r '.DBClusters[].DBClusterMembers[] | select(.IsClusterWriter == true).DBInstanceIdentifier')
 OldClusterInstanceArn=$(${AwsCli} rds describe-db-instances --no-cli-pager --db-instance-identifier ${OldClusterInstanceWriter}| jq -r '.DBInstances[].DBInstanceArn')
 AllTags=$(${AwsCli} rds list-tags-for-resource --no-cli-pager --resource-name ${OldClusterInstanceArn}| jq .TagList)
@@ -104,8 +105,9 @@ if
   --restore-type copy-on-write \
   --source-db-cluster-identifier ${CLUSTER} \
   --use-latest-restorable-time \
-  --vpc-security-group-ids ${DbSecurityGroup} \
-  --db-subnet-group-name ${DbSubnetGroup} \
+  --vpc-security-group-ids ${OldClusterDbSecurityGroup} \
+  --db-subnet-group-name ${OldClusterDbSubnetGroup} \
+  --db-cluster-parameter-group-name ${OldClusterDbClusterParameterGroup} \
   --kms-key-id ${KsmKeyId} \
   --deletion-protection \
   --backtrack-window 0 \
@@ -177,6 +179,7 @@ if
 	--db-instance-identifier ${NewInstanceName} \
 	--publicly-accessible \
 	--db-parameter-group-name ${OldClusterInstanceParameterGroup} \
+  --auto-minor-version-upgrade \
 	--no-cli-pager \
 	--tags "${AllTags}" > /dev/null 2>&1
 then
