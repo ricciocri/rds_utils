@@ -65,7 +65,7 @@ if [[ "$DeleteOldCluster" == "false" ]]
 then
     echo "$(date +"%Y-%m-%d %H:%M:%S") -- DBCluster $OldClusterName don't need to be deleted, EXIT."
     rm -f vars-clonedbcluster
-    exit 1
+    exit 0
 fi
 
 if [[ "$DeleteOldCluster" == "true" ]]
