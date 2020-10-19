@@ -63,6 +63,7 @@ AwsCli="docker run --rm -i -v $(pwd):/aws -v $HOME/.aws/:/root/.aws -v $HOME/.ss
 
 Today=$(TZ=UTC date "+%Y-%m-%d")
 Yesterday=$(TZ=UTC date "+%Y-%m-%d" -d "-1 day")
+ThreeDaysAgo=$(TZ=UTC date "+%Y-%m-%d" -d "-3 day")
 
 NewClusterNameWithDate="$NewClusterName-cluster-$Today"
 NewInstanceName="$NewClusterName-instance-$Today-1"
@@ -70,25 +71,64 @@ NewInstanceName="$NewClusterName-instance-$Today-1"
 # check if new cluster allready exists
 ClusterExists=$(${AwsCli} rds describe-db-clusters --no-cli-pager | jq -r '.DBClusters[].DBClusterIdentifier'| grep ${NewClusterNameWithDate} -c)
 
-if (( ${ClusterExists} == 0 ))
+if [ -z "$ClusterExists" ]
 then
-  echo "$(date +"%Y-%m-%d %H:%M:%S") -- DBCluster $NewClusterNameWithDate don't exists, continue creation..."
-else
-  echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: DBCluster $NewClusterNameWithDate allready exists, EXIT."
+  echo "$(date +"%Y-%m-%d %H:%M:%S") -- Variable ClusterExists $ClusterExists is empty, EXIT."
   exit 1
+else
+  echo "$(date +"%Y-%m-%d %H:%M:%S") -- Variable ClusterExists $ClusterExists is not empty, continue ...."
+  if (( ${ClusterExists} == 0 ))
+  then
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- DBCluster $NewClusterNameWithDate don't exists, continue creation..."
+  else
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: DBCluster $NewClusterNameWithDate allready exists, EXIT."
+    exit 1
+  fi
 fi
 
-# check if old cluster is a clone with date
-NotYesterdayFound=$(${AwsCli} rds describe-db-clusters --no-cli-pager | jq -r '.DBClusters[].DBClusterIdentifier' | grep ${OldClusterName} | grep ${Yesterday} -c)
-if (( ${NotYesterdayFound} == 0 ))
+# check if today is Monday
+WeekDay="$(TZ=UTC date +%A)"
+if [ "$WeekDay" = "Monday" ]
 then
-  echo "$(date +"%Y-%m-%d %H:%M:%S") -- OldCluster $OldClusterName is not a clone."
-  OldClusterNameWithDate=$OldClusterName
-	DeleteOldCluster=false
+  # check if old cluster is a clone with date ThreeDaysAgo
+  NotThreeDaysAgoFound=$(${AwsCli} rds describe-db-clusters --no-cli-pager | jq -r '.DBClusters[].DBClusterIdentifier' | grep ${OldClusterName} | grep ${ThreeDaysAgo} -c)
+  if [ -z "$NotThreeDaysAgoFound" ]
+  then
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Variable NotThreeDaysAgoFound $NotThreeDaysAgoFound is empty, EXIT."
+    exit 1
+  else
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Variable NotThreeDaysAgoFound $NotThreeDaysAgoFound is not empty, continue ...."
+    if (( ${NotThreeDaysAgoFound} == 0 ))
+    then
+      echo "$(date +"%Y-%m-%d %H:%M:%S") -- Today is Monday and OldCluster $OldClusterName is not a clone."
+      OldClusterNameWithDate=$OldClusterName
+    	DeleteOldCluster=false
+    else
+      echo "$(date +"%Y-%m-%d %H:%M:%S") -- Today is Monday and OldCluster $OldClusterName is a clone with date."
+    	OldClusterNameWithDate="$OldClusterName-cluster-$ThreeDaysAgo"
+    	DeleteOldCluster=true
+    fi
+  fi
 else
-  echo "$(date +"%Y-%m-%d %H:%M:%S") -- OldCluster $OldClusterName is a clone with date."
-	OldClusterNameWithDate="$OldClusterName-cluster-$Yesterday"
-	DeleteOldCluster=true
+  # check if old cluster is a clone with date Yesterday
+  NotYesterdayFound=$(${AwsCli} rds describe-db-clusters --no-cli-pager | jq -r '.DBClusters[].DBClusterIdentifier' | grep ${OldClusterName} | grep ${Yesterday} -c)
+  if [ -z "$NotYesterdayFound" ]
+  then
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Variable NotYesterdayFound $NotYesterdayFound is empty, EXIT."
+    exit 1
+  else
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Variable NotYesterdayFound $NotYesterdayFound is not empty, continue ...."
+    if (( ${NotYesterdayFound} == 0 ))
+    then
+      echo "$(date +"%Y-%m-%d %H:%M:%S") -- Today is not Monday and OldCluster $OldClusterName is not a clone."
+      OldClusterNameWithDate=$OldClusterName
+    	DeleteOldCluster=false
+    else
+      echo "$(date +"%Y-%m-%d %H:%M:%S") -- Today is not Monday and OldCluster $OldClusterName is a clone with date."
+    	OldClusterNameWithDate="$OldClusterName-cluster-$Yesterday"
+    	DeleteOldCluster=true
+    fi
+  fi
 fi
 
 OldClusterDbSecurityGroup=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${OldClusterNameWithDate}| jq -r '.DBClusters[].VpcSecurityGroups[].VpcSecurityGroupId'|tr '\r\n' ' ')
