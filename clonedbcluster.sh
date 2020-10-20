@@ -61,9 +61,9 @@ fi
 
 AwsCli="docker run --rm -i -v $(pwd):/aws -v $HOME/.aws/:/root/.aws -v $HOME/.ssh/:/root/.ssh -e AWS_PROFILE=${AwsProfile} amazon/aws-cli"
 
-Today=$(TZ=UTC date "+%Y-%m-%d")
-Yesterday=$(TZ=UTC date "+%Y-%m-%d" -d "-1 day")
-ThreeDaysAgo=$(TZ=UTC date "+%Y-%m-%d" -d "-3 day")
+Today=$(TC=Europe/Rome date "+%Y-%m-%d")
+Yesterday=$(TC=Europe/Rome date "+%Y-%m-%d" -d "-1 day")
+ThreeDaysAgo=$(TC=Europe/Rome date "+%Y-%m-%d" -d "-3 day")
 
 NewClusterNameWithDate="$NewClusterName-cluster-$Today"
 NewInstanceName="$NewClusterName-instance-$Today-1"
@@ -87,7 +87,7 @@ else
 fi
 
 # check if today is Monday
-WeekDay="$(TZ=UTC date +%A)"
+WeekDay="$(TC=Europe/Rome date +%A)"
 if [ "$WeekDay" = "Monday" ]
 then
   # check if old cluster is a clone with date ThreeDaysAgo
