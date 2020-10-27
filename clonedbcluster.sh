@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #set -x
-# This script create a clone of or SourceClusterName1 or SourceClusterName2 in NewClusterName with parameters of OldClusterName
+# This script create a clone of SourceClusterName1 or SourceClusterName2 in NewClusterName with parameters of OldClusterName, with the option to create a read replica instance (yes|no)
 # Accept this arguments:
-# sourceclustername1, sourceclustername2, newclustername, oldclustername, instancetype, country, ksmkeyid, awsprofile
+# sourceclustername1, sourceclustername2, newclustername, oldclustername, instancetype, country, ksmkeyid, addreadreplica, awsprofile
 # add cli_pager= in profiles in .aws/config or .aws/credentials
 
 if ! type mapfile > /dev/null 2>&1 ; then
@@ -10,7 +10,7 @@ if ! type mapfile > /dev/null 2>&1 ; then
 	exit 2
 fi
 
-PARSED_OPTIONS=$(getopt -n "$0" -o h --long "sourceclustername1:,sourceclustername2:,newclustername:,oldclustername:,instancetype:,country:,ksmkeyid:,awsprofile:"  -- "$@")
+PARSED_OPTIONS=$(getopt -n "$0" -o h --long "sourceclustername1:,sourceclustername2:,newclustername:,oldclustername:,instancetype:,country:,ksmkeyid:,addreadreplica:,awsprofile:"  -- "$@")
 eval set -- "$PARSED_OPTIONS"
 
 while true;
@@ -37,6 +37,9 @@ do
     --ksmkeyid )
       KsmKeyId=$2
       shift 2;;
+    --addreadreplica )
+      AddReadReplica=$2
+      shift 2;;      
     --awsprofile )
       AwsProfile=$2
       shift 2;;
@@ -47,16 +50,23 @@ do
   esac
 done
 
-if [[ -z $SourceClusterName1 ]] || [[ -z $SourceClusterName2 ]] || [[ -z $NewClusterName ]] || [[ -z $InstanceType ]] || [[ -z $Country ]] || [[ -z $KsmKeyId ]] || [[ -z $AwsProfile ]]
+if [[ -z $SourceClusterName1 ]] || [[ -z $SourceClusterName2 ]] || [[ -z $NewClusterName ]] || [[ -z $InstanceType ]] || [[ -z $Country ]] || [[ -z $KsmKeyId ]] || [[ -z $AddReadReplica ]] || [[ -z $AwsProfile ]]
 then
-	echo "This script clone RDS Aurora SourceClusterName1 or SourceClusterName2 (must be ARN if cross-account) into RDS Aurora NewClusterName with parameters from OldClusterName (optional), with tag Country, KMS key ID to encrypt and AWS PROFILE to use.
+	echo "This script clone RDS Aurora SourceClusterName1 or SourceClusterName2 (must be ARN if cross-account) into RDS Aurora NewClusterName with parameters from OldClusterName, with tag Country, KMS key ID to encrypt, with read replica Inatance (yes|no) and AWS PROFILE to use.
 
- Usage: $0 --sourceclustername1 SOURCECLUSTERNAME1 --sourceclustername2 SOURCECLUSTERNAME2 --newclustername NEWCLUSTERNAME --oldclustername OLDCLUSTERNAME --instancetype INSTANCETYPE --country COUNTRY --ksmkeyid KMSKEYID --awsprofile AWS_PROFILE
+ Usage: $0 --sourceclustername1 SOURCECLUSTERNAME1 --sourceclustername2 SOURCECLUSTERNAME2 --newclustername NEWCLUSTERNAME --oldclustername OLDCLUSTERNAME --instancetype INSTANCETYPE --country COUNTRY --ksmkeyid KMSKEYID --addreadreplica yes|no --awsprofile AWS_PROFILE
 
  examples:
- $0 --sourceclustername1 mycluster1 --sourceclustername2 mycluster2 --newclustername my-new-cluster --oldclustername my-old-cluster --instancetype db.t3.small --country italy --ksmkeyid xxxx-xxxx-xxxx --awsprofile dev
+ $0 --sourceclustername1 mycluster1 --sourceclustername2 mycluster2 --newclustername my-new-cluster --oldclustername my-old-cluster --instancetype db.t3.small --country italy --ksmkeyid xxxx-xxxx-xxxx --addreadreplica yes --awsprofile dev
  "
 	exit 1
+fi
+
+if [ "$AddReadReplica"  = "yes" ] || [ "$AddReadReplica" = "no" ]; then
+  echo "$(date +"%Y-%m-%d %H:%M:%S") -- --addreadreplica is yes or no, continue ..."
+else
+  echo "$(date +"%Y-%m-%d %H:%M:%S") -- --addreadreplica must be yes or no, EXIT"
+  exit 1
 fi
 
 AwsCli="docker run --rm -i -v $(pwd):/aws -v $HOME/.aws/:/root/.aws -v $HOME/.ssh/:/root/.ssh -e AWS_PROFILE=${AwsProfile} amazon/aws-cli"
@@ -67,8 +77,9 @@ ThreeDaysAgo=$(TC=Europe/Rome date "+%Y-%m-%d" -d "-3 day")
 
 NewClusterNameWithDate="$NewClusterName-cluster-$Today"
 NewInstanceName="$NewClusterName-instance-$Today-1"
+NewReaderInstanceName="$NewClusterName-instance-$Today-2"
 
-# check if new cluster allready exists
+# check if new Cluster allready exists
 ClusterExists=$(${AwsCli} rds describe-db-clusters --no-cli-pager | jq -r '.DBClusters[].DBClusterIdentifier'| grep ${NewClusterNameWithDate} -c)
 
 if [ -z "$ClusterExists" ]
@@ -135,8 +146,9 @@ OldClusterDbSecurityGroup=$(${AwsCli} rds describe-db-clusters --no-cli-pager --
 OldClusterDbSubnetGroup=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${OldClusterNameWithDate}| jq -r '.DBClusters[].DBSubnetGroup')
 OldClusterDbClusterParameterGroup=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${OldClusterNameWithDate}| jq -r '.DBClusters[].DBClusterParameterGroup')
 OldClusterInstanceWriter=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${OldClusterNameWithDate}| jq -r '.DBClusters[].DBClusterMembers[] | select(.IsClusterWriter == true).DBInstanceIdentifier')
-OldClusterInstanceArn=$(${AwsCli} rds describe-db-instances --no-cli-pager --db-instance-identifier ${OldClusterInstanceWriter}| jq -r '.DBInstances[].DBInstanceArn')
-AllTags=$(${AwsCli} rds list-tags-for-resource --no-cli-pager --resource-name ${OldClusterInstanceArn}| jq .TagList)
+OldClusterInstanceWriterArn=$(${AwsCli} rds describe-db-instances --no-cli-pager --db-instance-identifier ${OldClusterInstanceWriter}| jq -r '.DBInstances[].DBInstanceArn')
+OldClusterInstanceReader=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${OldClusterNameWithDate}| jq -r '.DBClusters[].DBClusterMembers[] | select(.IsClusterWriter == false).DBInstanceIdentifier')
+AllTags=$(${AwsCli} rds list-tags-for-resource --no-cli-pager --resource-name ${OldClusterInstanceWriterArn}| jq .TagList)
 
 for CLUSTER in $SourceClusterName1 $SourceClusterName2; do
 if
@@ -257,21 +269,109 @@ fi
 
 echo "$(date +"%Y-%m-%d %H:%M:%S") -- Finish Creation of DBInstance $NewInstanceName."
 
+# Create Reader Instance if needed
+if [ "$AddReadReplica"  = "yes" ]
+then
+  # check if Reader Instance allready exists
+  ReaderInstanceExists=$(${AwsCli} rds describe-db-instances --no-cli-pager --db-instance-identifier ${NewReaderInstanceName}| jq -r '.DBInstances[].DBInstanceIdentifier'| grep ${NewReaderInstanceName} -c)
+
+  if (( ${ReaderInstanceExists} == 0 ))
+  then
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Reader DBInstance $NewReaderInstanceName don't exists, creation continue ..."
+  else
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: Reader DBInstance $NewReaderInstanceName allready exists, EXIT."
+    exit 1
+  fi
+
+  # Create DB Instance
+  if
+    ${AwsCli} rds create-db-instance \
+    --db-instance-class ${InstanceType} \
+    --engine aurora \
+    --db-cluster-identifier ${NewClusterNameWithDate} \
+    --db-instance-identifier ${NewReaderInstanceName} \
+    --publicly-accessible \
+    --db-parameter-group-name ${OldClusterInstanceParameterGroup} \
+    --auto-minor-version-upgrade \
+    --no-cli-pager \
+    --tags "${AllTags}" > /dev/null 2>&1
+  then
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Creation of Reader DBInstance $NewReaderInstanceName started...."
+  else
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: Failed to create Reader DBInstance $NewReaderInstanceName on DBCluster $NewClusterNameWithDate, EXIT."
+    exit 1
+  fi
+
+  # wait until Reader Instance is available
+  ${AwsCli} rds wait db-instance-available --no-cli-pager --db-instance-identifier ${NewReaderInstanceName}
+
+  ReaderInstanceStatus=unknown
+  while [ "$ReaderInstanceStatus" != "available" ]; do
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Wait Reader DBInstances creation ..."
+    sleep 1
+    ReaderInstanceStatus=$(${AwsCli} rds describe-db-instances --no-cli-pager --db-instance-identifier ${NewReaderInstanceName} | jq -r '.DBInstances[].DBInstanceStatus')
+  done
+
+  # Set Country Tag to new Reader Instance
+  NewReaderInstanceArn=$(${AwsCli} rds describe-db-instances --no-cli-pager --db-instance-identifier ${NewReaderInstanceName}| jq -r '.DBInstances[].DBInstanceArn')
+
+  if
+    ${AwsCli} rds add-tags-to-resource \
+    --resource-name ${NewReaderInstanceArn} \
+    --no-cli-pager \
+    --tags "[{\"Key\": \"Country\",\"Value\": \"$Country\"}]"
+  then
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Update Tag Country to Reader DBInstance $NewReaderInstanceName finish."
+  else
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: Failed to update Tag Country on Reader DBInstance $NewReaderInstanceName, EXIT."
+    exit 1
+  fi
+
+  echo "$(date +"%Y-%m-%d %H:%M:%S") -- Finish Creation of Reader DBInstance $NewReaderInstanceName."
+fi
+
 # Output
-if [ ${ClusterStatus}  = "available" ] && [ "${InstanceStatus}" = "available" ]; then
-
-	NewClusterEndpoint=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${NewClusterNameWithDate} |jq -r '.DBClusters[].Endpoint')
-	OldClusterEndpoint=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${OldClusterNameWithDate} |jq -r '.DBClusters[].Endpoint')
-
-	cat << EOFF > vars-clonedbcluster
+if [ "$AddReadReplica"  = "yes" ]
+then
+  if [ "$ClusterStatus"  = "available" ] && [ "$InstanceStatus" = "available" ] && [ "$ReaderInstanceStatus" = "available" ]
+  then
+    NewClusterEndpoint=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${NewClusterNameWithDate} |jq -r '.DBClusters[].Endpoint')
+    NewClusterReaderEndpoint=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${NewClusterNameWithDate} |jq -r '.DBClusters[].ReaderEndpoint')
+    OldClusterEndpoint=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${OldClusterNameWithDate} |jq -r '.DBClusters[].Endpoint')
+    cat << EOFF > vars-clonedbcluster
 NewClusterEndpoint=${NewClusterEndpoint}
+NewClusterReaderEndpoint=${NewClusterReaderEndpoint}
 OldClusterEndpoint=${OldClusterEndpoint}
 NewClusterName=${NewClusterNameWithDate}
 OldClusterName=${OldClusterNameWithDate}
-OldInstanceName=${OldClusterInstanceWriter}
+OldInstanceWriterName=${OldClusterInstanceWriter}
+OldInstanceReaderName=${OldClusterInstanceReader}
 DeleteOldCluster=${DeleteOldCluster}
+AddReadReplica=${AddReadReplica}
 EOFF
-	echo "$(date +"%Y-%m-%d %H:%M:%S") -- DONE"
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- DONE"
+  else
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- KO"
+  fi
 else
-  echo "$(date +"%Y-%m-%d %H:%M:%S") -- KO"
+  if [ "$ClusterStatus"  = "available" ] && [ "$InstanceStatus" = "available" ]
+  then
+    NewClusterEndpoint=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${NewClusterNameWithDate} |jq -r '.DBClusters[].Endpoint')
+    NewClusterReaderEndpoint=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${NewClusterNameWithDate} |jq -r '.DBClusters[].ReaderEndpoint')
+    OldClusterEndpoint=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${OldClusterNameWithDate} |jq -r '.DBClusters[].Endpoint')
+    cat << EOFF > vars-clonedbcluster
+NewClusterEndpoint=${NewClusterEndpoint}
+NewClusterReaderEndpoint=${NewClusterReaderEndpoint}
+OldClusterEndpoint=${OldClusterEndpoint}
+NewClusterName=${NewClusterNameWithDate}
+OldClusterName=${OldClusterNameWithDate}
+OldInstanceWriterName=${OldClusterInstanceWriter}
+OldInstanceReaderName=${OldClusterInstanceReader}
+DeleteOldCluster=${DeleteOldCluster}
+AddReadReplica=${AddReadReplica}
+EOFF
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- DONE"
+  else
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- KO"
+  fi
 fi

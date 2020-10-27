@@ -44,11 +44,14 @@ fi
 . ./vars-clonedbcluster
 
 echo NewClusterEndpoint=${NewClusterEndpoint}
+echo NewClusterReaderEndpoint=${NewClusterReaderEndpoint}
 echo OldClusterEndpoint=${OldClusterEndpoint}
 echo NewClusterName=${NewClusterName}
 echo OldClusterName=${OldClusterName}
-echo OldInstanceName=${OldInstanceName}
+echo OldInstanceWriterName=${OldInstanceWriterName}
+echo OldInstanceReaderName=${OldInstanceReaderName}
 echo DeleteOldCluster=${DeleteOldCluster}
+echo AddReadReplica=${AddReadReplica}
 
 if [[ -z $DbUser ]] || [[ -z $DbPassword ]] || [[ -z $UserExcluded1 ]] || [[ -z $UserExcluded2 ]] || [[ -z $NewClusterEndpoint ]] || [[ -z $OldClusterEndpoint ]]
 then

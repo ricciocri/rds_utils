@@ -41,13 +41,16 @@ fi
 . ./vars-clonedbcluster
 
 echo NewClusterEndpoint=${NewClusterEndpoint}
+echo NewClusterReaderEndpoint=${NewClusterReaderEndpoint}
 echo OldClusterEndpoint=${OldClusterEndpoint}
 echo NewClusterName=${NewClusterName}
 echo OldClusterName=${OldClusterName}
-echo OldInstanceName=${OldInstanceName}
+echo OldInstanceWriterName=${OldInstanceWriterName}
+echo OldInstanceReaderName=${OldInstanceReaderName}
 echo DeleteOldCluster=${DeleteOldCluster}
+echo AddReadReplica=${AddReadReplica}
 
-if [[ -z $SkipFinalSnapshot ]] || [[ -z $AwsProfile ]] || [[ -z $DeleteOldCluster ]] || [[ -z $OldClusterName ]] || [[ -z $OldInstanceName ]]
+if [[ -z $SkipFinalSnapshot ]] || [[ -z $AwsProfile ]] || [[ -z $DeleteOldCluster ]] || [[ -z $OldClusterName ]] || [[ -z $OldInstanceWriterName ]]
 then
 	echo "This script delete RDS Aurora Cluster with SkipFinalSnapshot true or false and AWS PROFILE to use.
 
@@ -82,15 +85,29 @@ then
     echo "$(date +"%Y-%m-%d %H:%M:%S") -- Delete DBCluster $OldClusterName in progress ..."
   fi
 
-  # check if Instance exists
-  InstanceExists=$(${AwsCli} rds describe-db-instances --no-cli-pager --db-instance-identifier ${OldInstanceName}| jq -r '.DBInstances[].DBInstanceIdentifier'| grep ${OldInstanceName} -c)
-
-  if (( ${InstanceExists} == 0 ))
+  # check if Instance Writer exists
+  InstanceWriterExists=$(${AwsCli} rds describe-db-instances --no-cli-pager --db-instance-identifier ${OldInstanceWriterName}| jq -r '.DBInstances[].DBInstanceIdentifier'| grep ${OldInstanceWriterName} -c)
+  if (( ${InstanceWriterExists} == 0 ))
   then
-    echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: DBInstance $OldInstanceName don't exists, EXIT."
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: Writer DBInstance $OldInstanceWriterName don't exists, EXIT."
     exit 1
   else
-    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Delete DBInstance $OldInstanceName in progress ..."
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Writer DBInstance $OldInstanceWriterName will be deleted ..."
+  fi
+
+  # check if Instance Reader exists
+  if [ -z "${OldInstanceReaderName}" ]
+  then
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- OldInstanceReaderName don't exists"
+  else
+    InstanceReaderExists=$(${AwsCli} rds describe-db-instances --no-cli-pager --db-instance-identifier ${OldInstanceReaderName}| jq -r '.DBInstances[].DBInstanceIdentifier'| grep ${OldInstanceReaderName} -c)
+    if (( ${InstanceReaderExists} == 0 ))
+    then
+      echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: Reader DBInstance $OldInstanceReaderName don't exists, EXIT."
+      exit 1
+    else
+      echo "$(date +"%Y-%m-%d %H:%M:%S") -- Reader DBInstance $OldInstanceReaderName will be deleted ..."
+    fi  
   fi
 
   if [[ "$SkipFinalSnapshot" == "true" ]]
@@ -115,20 +132,38 @@ then
     exit 1
   fi
 
-  # delete Instance
+  # delete Instance Reader if exists
+  if [ -z "${OldInstanceReaderName}" ]
+  then
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- OldInstanceReaderName don't exists and don't delete"
+  else
+    if
+      ${AwsCli} rds delete-db-instance \
+      --db-instance-identifier ${OldInstanceReaderName} \
+      --no-cli-pager
+    then
+      echo "$(date +"%Y-%m-%d %H:%M:%S") -- Delete of Reader DBInstance $OldInstanceReaderName DONE."
+      sleep 5
+    else
+      echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: in delete of Reader DBInstance $OldInstanceReaderName, EXIT."
+      exit 1
+    fi 
+  fi
+
+  # delete Writer Instance
   if
   	${AwsCli} rds delete-db-instance \
-  	--db-instance-identifier ${OldInstanceName} \
+  	--db-instance-identifier ${OldInstanceWriterName} \
   	--no-cli-pager
   then
-  	echo "$(date +"%Y-%m-%d %H:%M:%S") -- Delete of DBInstance $OldInstanceName DONE."
+  	echo "$(date +"%Y-%m-%d %H:%M:%S") -- Delete of Writer DBInstance $OldInstanceWriterName DONE."
     sleep 5
   else
-    echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: in delete of DBInstance $OldInstanceName, EXIT."
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: in delete of Writer DBInstance $OldInstanceWriterName, EXIT."
     exit 1
   fi
 
-  # delete cluster
+  # delete Cluster
   if
   	${AwsCli} rds delete-db-cluster \
   	--db-cluster-identifier ${OldClusterName} \
