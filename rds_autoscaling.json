@@ -1,0 +1,9 @@
+{
+    "TargetValue": 60.0,
+    "PredefinedMetricSpecification": 
+    {
+        "PredefinedMetricType": "RDSReaderAverageCPUUtilization"
+    },
+    "ScaleOutCooldown": 300,
+    "ScaleInCooldown": 300
+}

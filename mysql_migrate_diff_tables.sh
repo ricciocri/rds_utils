@@ -7,7 +7,7 @@ if ! type mapfile > /dev/null 2>&1 ; then
 	exit 2
 fi
 
-PARSED_OPTIONS=$(getopt -n "$0" -o h --long "dbuser:,dbpassword:,db:"  -- "$@")
+PARSED_OPTIONS=$(getopt -n "$0" -o h --long "dbuser:,dbpassword:,db:,newclusterendpoint:,oldclusterendpoint:"  -- "$@")
 eval set -- "$PARSED_OPTIONS"
 
 while true;
@@ -22,6 +22,12 @@ do
   	--db )
   	  Db=$2
   	  shift 2;;
+    --newclusterendpoint )
+      NewClusterEndpoint=$2
+      shift 2;;
+    --oldclusterendpoint )
+      OldClusterEndpoint=$2
+      shift 2;;       
 		-- )
       shift
       break;;
@@ -29,35 +35,14 @@ do
   esac
 done
 
-VarsSourceFile="./vars-clonedbcluster"
-
-if [[ -f "$VarsSourceFile" && -s "$VarsSourceFile" ]]; then
-    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Var file $VarsSourceFile exist and not empty, OK"
-else
-    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Var file $VarsSourceFile not exist or empty, EXIT"
-    exit 1
-fi
-
-. ./vars-clonedbcluster
-
-echo NewClusterEndpoint=${NewClusterEndpoint}
-echo NewClusterReaderEndpoint=${NewClusterReaderEndpoint}
-echo OldClusterEndpoint=${OldClusterEndpoint}
-echo NewClusterName=${NewClusterName}
-echo OldClusterName=${OldClusterName}
-echo OldInstanceWriterName=${OldInstanceWriterName}
-echo OldInstanceReaderName=${OldInstanceReaderName}
-echo DeleteOldCluster=${DeleteOldCluster}
-echo AddReadReplica=${AddReadReplica}
-
 if [[ -z $DbUser ]] || [[ -z $DbPassword ]] || [[ -z $Db ]] || [[ -z $NewClusterEndpoint ]] || [[ -z $OldClusterEndpoint ]]
 then
 	echo "This script migrate from RDS Aurora Mysql Source Host to RDS Aurora Mysql Target Host tables in Db that are not in Target.
 
- Usage: $0 --dbuser DbUser --dbpassword DbPassword --db Db
+ Usage: $0 --dbuser DbUser --dbpassword DbPassword --db Db --newclusterendpoint NewClusterEndpoint --oldclusterendpoint OldClusterEndpoint
 
  examples:
- $0 --dbuser dbuser --dbpassword dbpassword --db
+ $0 --dbuser dbuser --dbpassword dbpassword --db db --newclusterendpoint host1 --oldclusterendpoint host2
  "
 	exit 1
 fi
@@ -102,6 +87,7 @@ echo "$(date +"%Y-%m-%d %H:%M:%S") -- Starting migration Diff Tables...."
 for DiffTables in ${DiffTables}
 do
   if
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Start migration of Diff Table $DiffTables..."
   	mysqldump --host=${OldClusterEndpoint} --user=${DbUser} --password=${DbPassword} ${DumpOpts} ${Db} ${DiffTables} | mysql --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} --init-command="SET SESSION FOREIGN_KEY_CHECKS=0; SET SESSION UNIQUE_CHECKS=0;" $Db
   then
   	echo "$(date +"%Y-%m-%d %H:%M:%S") -- Migration of Diff Table $DiffTables, OK."

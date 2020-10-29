@@ -7,7 +7,7 @@ if ! type mapfile > /dev/null 2>&1 ; then
 	exit 2
 fi
 
-PARSED_OPTIONS=$(getopt -n "$0" -o h --long "dbuser:,dbpassword:,dbuserexcluded1:,dbuserexcluded2:"  -- "$@")
+PARSED_OPTIONS=$(getopt -n "$0" -o h --long "dbuser:,dbpassword:,dbuserexcluded1:,dbuserexcluded2:,newclusterendpoint:,oldclusterendpoint:"  -- "$@")
 eval set -- "$PARSED_OPTIONS"
 
 while true;
@@ -25,6 +25,12 @@ do
     --dbuserexcluded2 )
       UserExcluded2=$2
       shift 2;;
+    --newclusterendpoint )
+      NewClusterEndpoint=$2
+      shift 2;;
+    --oldclusterendpoint )
+      OldClusterEndpoint=$2
+      shift 2;;            
 		-- )
       shift
       break;;
@@ -32,35 +38,14 @@ do
   esac
 done
 
-VarsSourceFile="./vars-clonedbcluster"
-
-if [[ -f "$VarsSourceFile" && -s "$VarsSourceFile" ]]; then
-    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Var file $VarsSourceFile exist and not empty, OK"
-else
-    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Var file $VarsSourceFile not exist or empty, EXIT"
-    exit 1
-fi
-
-. ./vars-clonedbcluster
-
-echo NewClusterEndpoint=${NewClusterEndpoint}
-echo NewClusterReaderEndpoint=${NewClusterReaderEndpoint}
-echo OldClusterEndpoint=${OldClusterEndpoint}
-echo NewClusterName=${NewClusterName}
-echo OldClusterName=${OldClusterName}
-echo OldInstanceWriterName=${OldInstanceWriterName}
-echo OldInstanceReaderName=${OldInstanceReaderName}
-echo DeleteOldCluster=${DeleteOldCluster}
-echo AddReadReplica=${AddReadReplica}
-
 if [[ -z $DbUser ]] || [[ -z $DbPassword ]] || [[ -z $UserExcluded1 ]] || [[ -z $UserExcluded2 ]] || [[ -z $NewClusterEndpoint ]] || [[ -z $OldClusterEndpoint ]]
 then
 	echo "This script migrate users from RDS Aurora Mysql Source Host OldClusterEndpoint to RDS Aurora Mysql Target Host NewClusterEndpoint, except to user rdsadmin and Users to Exclude
 
- Usage: $0 --dbuser DbUser --dbpassword DbPassword --dbuserexcluded1 userexcluded1 --dbuserexcluded2 userexcluded2
+ Usage: $0 --dbuser DbUser --dbpassword DbPassword --dbuserexcluded1 userexcluded1 --dbuserexcluded2 userexcluded2 --newclusterendpoint NewClusterEndpoint --oldclusterendpoint OldClusterEndpoint
 
  examples:
- $0 --dbuser dbuser --dbpassword dbpassword --dbuserexcluded1 user1 --dbuserexcluded2 user2
+ $0 --dbuser dbuser --dbpassword dbpassword --dbuserexcluded1 user1 --dbuserexcluded2 user2 --newclusterendpoint host1 --oldclusterendpoint host2
  "
 	exit 1
 fi
@@ -104,6 +89,7 @@ echo "$(date +"%Y-%m-%d %H:%M:%S") -- Starting user and db Tables migration ....
 for Table in user db
 do
   if
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Start migration of Table $Table..."
   	mysqldump --host=${OldClusterEndpoint} --user=${DbUser} --password=${DbPassword} ${DumpOpts} mysql --tables ${Table} --where="user not in ('rdsadmin','${UserExcluded1}','${UserExcluded2}','');"| mysql --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} --init-command="SET SESSION FOREIGN_KEY_CHECKS=0; SET SESSION UNIQUE_CHECKS=0;" mysql && \
     mysql --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} -e "FLUSH PRIVILEGES"
   then

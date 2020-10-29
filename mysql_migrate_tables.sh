@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #set -x
 # This script migrate tables from Source to Target
+# --tables must be the last parameter!
 
 if ! type mapfile > /dev/null 2>&1 ; then
   echo "This script need bash 4.x exiting"
@@ -8,7 +9,7 @@ if ! type mapfile > /dev/null 2>&1 ; then
 fi
 set -e
 
-PARSED_OPTIONS=$(getopt -n "$0" -o h --long "db:,dbuser:,dbpassword:,tables:"  -- "$@")
+PARSED_OPTIONS=$(getopt -n "$0" -o h --long "db:,dbuser:,dbpassword:,newclusterendpoint:,oldclusterendpoint:,tables:"  -- "$@")
 
 while true;
 do
@@ -22,6 +23,12 @@ do
   	--dbpassword )
   	  DbPassword=$2
   	  shift 2;;
+    --newclusterendpoint )
+      NewClusterEndpoint=$2
+      shift 2;;
+    --oldclusterendpoint )
+      OldClusterEndpoint=$2
+      shift 2;;
   	--tables )
   	  shift
   	  Tables=$@
@@ -33,35 +40,14 @@ do
   esac
 done
 
-VarsSourceFile="./vars-clonedbcluster"
-
-if [[ -f "$VarsSourceFile" && -s "$VarsSourceFile" ]]; then
-    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Var file $VarsSourceFile exist and not empty, OK"
-else
-    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Var file $VarsSourceFile not exist or empty, EXIT"
-    exit 1
-fi
-
-. ./vars-clonedbcluster
-
-echo NewClusterEndpoint=${NewClusterEndpoint}
-echo NewClusterReaderEndpoint=${NewClusterReaderEndpoint}
-echo OldClusterEndpoint=${OldClusterEndpoint}
-echo NewClusterName=${NewClusterName}
-echo OldClusterName=${OldClusterName}
-echo OldInstanceWriterName=${OldInstanceWriterName}
-echo OldInstanceReaderName=${OldInstanceReaderName}
-echo DeleteOldCluster=${DeleteOldCluster}
-echo AddReadReplica=${AddReadReplica}
-
 if [[ -z $DbUser ]] || [[ -z $DbPassword ]] || [[ -z $Db ]] || [[ -z $Tables ]] || [[ -z $NewClusterEndpoint ]] || [[ -z $OldClusterEndpoint ]]
 then
 	echo "This script migrate tables in Database Db from RDS Aurora Mysql Source Host to RDS Aurora Mysql Target Host
 
- Usage: $0 --dbuser DbUser --dbpassword DbPassword --db Db --tables tables_list
+ Usage: $0 --dbuser DbUser --dbpassword DbPassword --db Db --newclusterendpoint NewClusterEndpoint --oldclusterendpoint OldClusterEndpoint --tables tables_list
 
  examples:
- $0 --dbuser dbuser --dbpassword dbpassword --db database --tables a b c d
+ $0 --dbuser dbuser --dbpassword dbpassword --db database --newclusterendpoint host1 --oldclusterendpoint host2 --tables a b c d
  "
 	exit 1
 fi
@@ -91,6 +77,7 @@ echo "$(date +"%Y-%m-%d %H:%M:%S") -- Starting Tables migration ...."
 for Table in ${Tables}
 do
   if
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Start migration of Table $Table..."
   	mysqldump --host=${OldClusterEndpoint} --user=${DbUser} --password=${DbPassword} ${DumpOpts} ${Db} ${Table} | mysql --host=${NewClusterEndpoint} --user=${DbUser} --password=${DbPassword} --init-command="SET SESSION FOREIGN_KEY_CHECKS=0; SET SESSION UNIQUE_CHECKS=0;" $Db
   then
   	echo "$(date +"%Y-%m-%d %H:%M:%S") -- Migration of Table $Table, OK."
