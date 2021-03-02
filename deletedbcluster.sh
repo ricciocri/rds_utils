@@ -84,7 +84,7 @@ then
   # check if Cluster exists
   ClusterExists=$(${AwsCli} rds describe-db-clusters --no-cli-pager | jq -r '.DBClusters[].DBClusterIdentifier'| grep ${OldClusterName} -c)
 
-  if (( ${ClusterExists} == 0 ))
+  if (( ClusterExists == 0 ))
   then
     echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: DBCluster $OldClusterName don't exists, EXIT."
     exit 1
@@ -94,7 +94,7 @@ then
 
   # check if Instance Writer exists
   InstanceWriterExists=$(${AwsCli} rds describe-db-instances --no-cli-pager --db-instance-identifier ${OldInstanceWriterName}| jq -r '.DBInstances[].DBInstanceIdentifier'| grep ${OldInstanceWriterName} -c)
-  if (( ${InstanceWriterExists} == 0 ))
+  if (( InstanceWriterExists == 0 ))
   then
     echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: Writer DBInstance $OldInstanceWriterName don't exists, EXIT."
     exit 1
@@ -108,7 +108,7 @@ then
     echo "$(date +"%Y-%m-%d %H:%M:%S") -- OldInstanceReaderName don't exists"
   else
     InstanceReaderExists=$(${AwsCli} rds describe-db-instances --no-cli-pager --db-instance-identifier ${OldInstanceReaderName}| jq -r '.DBInstances[].DBInstanceIdentifier'| grep ${OldInstanceReaderName} -c)
-    if (( ${InstanceReaderExists} == 0 ))
+    if (( InstanceReaderExists == 0 ))
     then
       echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: Reader DBInstance $OldInstanceReaderName don't exists, EXIT."
       exit 1
@@ -158,7 +158,7 @@ then
 
     # Delete scaling policy
     PolicyExists=$(${AwsCli} application-autoscaling describe-scaling-policies --no-cli-pager --service-namespace rds --policy-names rds-stg-autoscale-policy --resource-id cluster:${OldClusterName} | jq -r '.ScalingPolicies[].ResourceId'| grep ${OldClusterName} -c)
-    if (( ${PolicyExists} == 1 ))
+    if (( PolicyExists == 1 ))
     then
       echo "$(date +"%Y-%m-%d %H:%M:%S") -- Scaling Policy exists on DBCluster $OldClusterName, delete it ..."
       if
@@ -174,7 +174,7 @@ then
 
     # Deregister Scalable Target
     ClusterRegistered=$(${AwsCli} application-autoscaling describe-scalable-targets --no-cli-pager --service-namespace rds --resource-id cluster:${OldClusterName} | jq -r '.ScalableTargets[].ResourceId'| grep ${OldClusterName} -c)
-    if (( ${ClusterRegistered} == 1 ))
+    if (( ClusterRegistered == 1 ))
     then
       echo "$(date +"%Y-%m-%d %H:%M:%S") -- DBCluster $OldClusterName is registered, deregister it ..."
       if
@@ -191,7 +191,7 @@ then
   # delete Writer Instance
   if
   	${AwsCli} rds delete-db-instance \
-  	--db-instance-identifier ${OldInstanceWriterName} \
+  	--db-instance-identifier "${OldInstanceWriterName}" \
   	--no-cli-pager
   then
   	echo "$(date +"%Y-%m-%d %H:%M:%S") -- Delete of Writer DBInstance $OldInstanceWriterName DONE."
@@ -204,9 +204,9 @@ then
   # delete Cluster
   if
   	${AwsCli} rds delete-db-cluster \
-  	--db-cluster-identifier ${OldClusterName} \
+  	--db-cluster-identifier "${OldClusterName}" \
   	--no-cli-pager \
-  	$SkipFinalSnapshotArg
+  	"$SkipFinalSnapshotArg"
   then
   	echo "$(date +"%Y-%m-%d %H:%M:%S") -- Delete of DBCluster $OldClusterName with $SkipFinalSnapshotArg DONE."
     rm -f vars-clonedbcluster

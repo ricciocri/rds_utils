@@ -97,6 +97,8 @@ JqSelectName=".data[]| select((.sourceId == $DomainId) and (.name == \"$RecordNa
 CmdCheckName="perl $DnsMeApiPerl -s $UrlCheck| jq -r '$JqSelectName'"
 
 RecordNameExistent=$(eval "$CmdCheckName")
+RecordNameExistent=$(eval "$CmdCheckName")
+RecordNameExistent=$(eval "$CmdCheckName")
 
 if [[ "$RecordNameExistent" == "$RecordName" ]]
 then
