@@ -206,7 +206,7 @@ then
   	${AwsCli} rds delete-db-cluster \
   	--db-cluster-identifier "${OldClusterName}" \
   	--no-cli-pager \
-  	"$SkipFinalSnapshotArg"
+  	$SkipFinalSnapshotArg
   then
   	echo "$(date +"%Y-%m-%d %H:%M:%S") -- Delete of DBCluster $OldClusterName with $SkipFinalSnapshotArg DONE."
     rm -f vars-clonedbcluster
