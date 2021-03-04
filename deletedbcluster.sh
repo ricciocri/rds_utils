@@ -107,14 +107,17 @@ then
   then
     echo "$(date +"%Y-%m-%d %H:%M:%S") -- OldInstanceReaderName don't exists"
   else
-    InstanceReaderExists=$(${AwsCli} rds describe-db-instances --no-cli-pager --db-instance-identifier ${OldInstanceReaderName}| jq -r '.DBInstances[].DBInstanceIdentifier'| grep ${OldInstanceReaderName} -c)
-    if (( InstanceReaderExists == 0 ))
-    then
-      echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: Reader DBInstance $OldInstanceReaderName don't exists, EXIT."
-      exit 1
-    else
-      echo "$(date +"%Y-%m-%d %H:%M:%S") -- Reader DBInstance $OldInstanceReaderName will be deleted ..."
-    fi  
+    for OldInstanceReaderName1 in ${OldInstanceReaderName}
+    do
+      InstanceReaderExists=$(${AwsCli} rds describe-db-instances --no-cli-pager --db-instance-identifier $OldInstanceReaderName1| jq -r '.DBInstances[].DBInstanceIdentifier'| grep $OldInstanceReaderName1 -c)
+      if (( InstanceReaderExists == 0 ))
+      then
+        echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: Reader DBInstance $OldInstanceReaderName1 don't exists, EXIT."
+        exit 1
+      else
+        echo "$(date +"%Y-%m-%d %H:%M:%S") -- Reader DBInstance $OldInstanceReaderName1 will be deleted ..."
+      fi
+    done  
   fi
 
   if [[ "$SkipFinalSnapshot" == "true" ]]
@@ -122,7 +125,7 @@ then
     echo "$(date +"%Y-%m-%d %H:%M:%S") -- with --skip-final-snapshot True ..."
     SkipFinalSnapshotArg="--skip-final-snapshot"
   else
-    echo "$(date +"%Y-%m-%d %H:%M:%S") -- with --skip-final-snapshot False, set  final-db-snapshot-identifier=$OldClusterName-final-snapshot ..."
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- with --skip-final-snapshot False, set final-db-snapshot-identifier=$OldClusterName-final-snapshot ..."
     SkipFinalSnapshotArg="--no-skip-final-snapshot --final-db-snapshot-identifier $OldClusterName-final-snapshot"
   fi
 
@@ -144,17 +147,20 @@ then
   then
     echo "$(date +"%Y-%m-%d %H:%M:%S") -- OldInstanceReaderName don't exists and don't delete"
   else
-    if
-      ${AwsCli} rds delete-db-instance \
-      --db-instance-identifier ${OldInstanceReaderName} \
-      --no-cli-pager
-    then
-      echo "$(date +"%Y-%m-%d %H:%M:%S") -- Delete of Reader DBInstance $OldInstanceReaderName DONE."
-      sleep 5
-    else
-      echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: in delete of Reader DBInstance $OldInstanceReaderName, EXIT."
-      exit 1
-    fi
+    for OldInstanceReaderName2 in ${OldInstanceReaderName}
+    do
+      if
+        ${AwsCli} rds delete-db-instance \
+        --db-instance-identifier $OldInstanceReaderName2 \
+        --no-cli-pager
+      then
+        echo "$(date +"%Y-%m-%d %H:%M:%S") -- Delete of Reader DBInstance $OldInstanceReaderName2 DONE."
+        sleep 5
+      else
+        echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: in delete of Reader DBInstance $OldInstanceReaderName2, EXIT."
+        exit 1
+      fi
+    done
 
     # Delete scaling policy
     PolicyExists=$(${AwsCli} application-autoscaling describe-scaling-policies --no-cli-pager --service-namespace rds --policy-names rds-stg-autoscale-policy --resource-id cluster:${OldClusterName} | jq -r '.ScalingPolicies[].ResourceId'| grep ${OldClusterName} -c)

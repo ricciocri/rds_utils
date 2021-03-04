@@ -166,7 +166,7 @@ OldClusterDbSubnetGroup=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db
 OldClusterDbClusterParameterGroup=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${OldClusterNameWithDate}| jq -r '.DBClusters[].DBClusterParameterGroup')
 OldClusterInstanceWriter=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${OldClusterNameWithDate}| jq -r '.DBClusters[].DBClusterMembers[] | select(.IsClusterWriter == true).DBInstanceIdentifier')
 OldClusterInstanceWriterArn=$(${AwsCli} rds describe-db-instances --no-cli-pager --db-instance-identifier ${OldClusterInstanceWriter}| jq -r '.DBInstances[].DBInstanceArn')
-OldClusterInstanceReader=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${OldClusterNameWithDate}| jq -r '.DBClusters[].DBClusterMembers[] | select(.IsClusterWriter == false).DBInstanceIdentifier')
+OldClusterInstanceReader=$(${AwsCli} rds describe-db-clusters --no-cli-pager --db-cluster-identifier ${OldClusterNameWithDate}| jq -r '.DBClusters[].DBClusterMembers[] | select(.IsClusterWriter == false).DBInstanceIdentifier'|tr '\r\n' ' ')
 AllTags=$(${AwsCli} rds list-tags-for-resource --no-cli-pager --resource-name ${OldClusterInstanceWriterArn}| jq .TagList)
 
 # Create Cluster
@@ -413,7 +413,7 @@ OldClusterEndpoint=${OldClusterEndpoint}
 NewClusterName=${NewClusterNameWithDate}
 OldClusterName=${OldClusterNameWithDate}
 OldInstanceWriterName=${OldClusterInstanceWriter}
-OldInstanceReaderName=${OldClusterInstanceReader}
+OldInstanceReaderName="${OldClusterInstanceReader}"
 DeleteOldCluster=${DeleteOldCluster}
 AddReadReplica=${AddReadReplica}
 EOFF
@@ -431,7 +431,7 @@ OldClusterEndpoint=${OldClusterEndpoint}
 NewClusterName=${NewClusterNameWithDate}
 OldClusterName=${OldClusterNameWithDate}
 OldInstanceWriterName=${OldClusterInstanceWriter}
-OldInstanceReaderName=${OldClusterInstanceReader}
+OldInstanceReaderName="${OldClusterInstanceReader}"
 DeleteOldCluster=${DeleteOldCluster}
 AddReadReplica=${AddReadReplica}
 EOFF
