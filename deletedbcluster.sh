@@ -71,6 +71,8 @@ fi
 
 AwsCli="docker run --rm -i -v $(pwd):/aws -v $HOME/.aws/:/root/.aws -v $HOME/.ssh/:/root/.ssh -e AWS_PROFILE=${AwsProfile} amazon/aws-cli"
 
+
+
 if [[ "$DeleteOldCluster" == "false" ]]
 then
     echo "$(date +"%Y-%m-%d %H:%M:%S") -- DBCluster $OldClusterName don't need to be deleted, EXIT."
@@ -80,6 +82,22 @@ fi
 
 if [[ "$DeleteOldCluster" == "true" ]]
 then
+  # check if DB Snapshot exists and delete it
+  SevenDaysAgo=$(TC=Europe/Rome date "+%Y-%m-%d" -d "-7 day")
+  OldClusterNameWithoutDate=$(echo $OldClusterName | sed 's/-[0-9]\+-[0-9]\+-[0-9]\+$//')
+  SnapshotToDelete="$OldClusterNameWithoutDate$SevenDaysAgo-final-snapshot"
+  SnapshotExists=$(${AwsCli} rds describe-db-cluster-snapshots --no-cli-pager --snapshot-type manual | jq -r '.DBClusterSnapshots[].DBClusterSnapshotIdentifier' | grep ${SnapshotToDelete} -c)
+
+  if (( SnapshotExists == 0 ))
+  then
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: DBCluster Snapshot $SnapshotToDelete don't exists, EXIT."
+    exit 1
+  else
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- Delete DBCluster Snapshot $SnapshotToDelete in progress ..."
+    ${AwsCli} rds delete-db-cluster-snapshot \
+    --db-cluster-snapshot-identifier $SnapshotToDelete \
+    --no-cli-pager
+  fi
 
   # check if Cluster exists
   ClusterExists=$(${AwsCli} rds describe-db-clusters --no-cli-pager | jq -r '.DBClusters[].DBClusterIdentifier'| grep ${OldClusterName} -c)
