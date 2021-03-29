@@ -90,8 +90,7 @@ then
 
   if (( SnapshotExists == 0 ))
   then
-    echo "$(date +"%Y-%m-%d %H:%M:%S") -- ERROR: DBCluster Snapshot $SnapshotToDelete don't exists, EXIT."
-    exit 1
+    echo "$(date +"%Y-%m-%d %H:%M:%S") -- DBCluster Snapshot $SnapshotToDelete don't exists, continue ..."
   else
     echo "$(date +"%Y-%m-%d %H:%M:%S") -- Delete DBCluster Snapshot $SnapshotToDelete in progress ..."
     ${AwsCli} rds delete-db-cluster-snapshot \
