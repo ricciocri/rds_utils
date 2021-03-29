@@ -85,7 +85,7 @@ then
   # check if DB Snapshot exists and delete it
   SevenDaysAgo=$(TC=Europe/Rome date "+%Y-%m-%d" -d "-7 day")
   OldClusterNameWithoutDate=$(echo $OldClusterName | sed 's/-[0-9]\+-[0-9]\+-[0-9]\+$//')
-  SnapshotToDelete="$OldClusterNameWithoutDate$SevenDaysAgo-final-snapshot"
+  SnapshotToDelete="$OldClusterNameWithoutDate-$SevenDaysAgo-final-snapshot"
   SnapshotExists=$(${AwsCli} rds describe-db-cluster-snapshots --no-cli-pager --snapshot-type manual | jq -r '.DBClusterSnapshots[].DBClusterSnapshotIdentifier' | grep ${SnapshotToDelete} -c)
 
   if (( SnapshotExists == 0 ))
