@@ -1,5 +1,5 @@
 {
-    "TargetValue": 70.0,
+    "TargetValue": 80.0,
     "PredefinedMetricSpecification": 
     {
         "PredefinedMetricType": "RDSReaderAverageCPUUtilization"
