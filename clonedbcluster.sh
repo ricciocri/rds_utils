@@ -39,7 +39,7 @@ do
       shift 2;;
     --addreadreplica )
       AddReadReplica=$2
-      shift 2;;      
+      shift 2;;
     --awsprofile )
       AwsProfile=$2
       shift 2;;
@@ -61,7 +61,7 @@ do
   	--tables )
   	  shift
   	  Tables=$@
-  	  break;;          
+  	  break;;
 		-- )
       shift
       break;;
@@ -247,7 +247,7 @@ fi
 if
 	${AwsCli} rds create-db-instance \
 	--db-instance-class ${InstanceType} \
-	--engine aurora \
+	--engine aurora-mysql \
 	--db-cluster-identifier ${NewClusterNameWithDate} \
 	--db-instance-identifier ${NewInstanceName} \
 	--publicly-accessible \
@@ -326,7 +326,7 @@ then
   if
     ${AwsCli} rds create-db-instance \
     --db-instance-class ${InstanceType} \
-    --engine aurora \
+    --engine aurora-mysql \
     --db-cluster-identifier ${NewClusterNameWithDate} \
     --db-instance-identifier ${NewReaderInstanceName} \
     --publicly-accessible \
