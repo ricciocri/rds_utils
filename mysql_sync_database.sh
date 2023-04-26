@@ -44,7 +44,7 @@ DB_USER = $DB_USER
 DB_PASS = $DB_PASS
 TABLES = $TABLES
 "
-DUMP_OPTS="--ignore-table=mysql.event --hex-blob --add-drop-table --single-transaction --skip-add-locks"
+DUMP_OPTS="--ignore-table=mysql.event --hex-blob --add-drop-table --single-transaction --skip-add-locks --no-tablespaces"
 
 # CHECK SOURCE_MYSQL_HOST if database exists
 echo "CHECK connection and grants to ${SOURCE_MYSQL_HOST}"
