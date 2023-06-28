@@ -47,23 +47,23 @@ TABLES = $TABLES
 
 test -t 1 && USE_TTY="-t"
 
-DOCKER_CMD="docker run -i ${USE_TTY} --rm mysql:5.7.40"
+DOCKER_CMD="docker run -i ${USE_TTY} -e MYSQL_PWD=${DB_PASS} --rm mysql:5.7.40"
 DUMP_OPTS="--ignore-table=mysql.event --hex-blob --add-drop-table --single-transaction --skip-add-locks --no-tablespaces --set-gtid-purged=OFF"
 
 # CHECK SOURCE_MYSQL_HOST if database exists
 echo "CHECK connection and grants on SOURCE_MYSQL_HOST ${SOURCE_MYSQL_HOST} and DB ${DB}"
-${DOCKER_CMD} mysql --host=${SOURCE_MYSQL_HOST} --user=${DB_USER} --password=${DB_PASS} -e 'show tables;' ${DB}
+${DOCKER_CMD} mysql --host=${SOURCE_MYSQL_HOST} --user=${DB_USER} -e 'show tables;' ${DB}
 
 # CHECK TARGET_MYSQL_HOST if database exists
 echo "CHECK connection and grants toon TARGET_MYSQL_HOST ${TARGET_MYSQL_HOST} and DB ${DB}"
-${DOCKER_CMD} mysql --host=${TARGET_MYSQL_HOST} --user=${DB_USER} --password=${DB_PASS} -e 'show tables;' ${DB}
+${DOCKER_CMD} mysql --host=${TARGET_MYSQL_HOST} --user=${DB_USER} -e 'show tables;' ${DB}
 
 
 echo "Starting migration"
 for TABLE in ${TABLES}
 do
 	echo "Migrating $TABLE"
-	${DOCKER_CMD} mysqldump --host=${SOURCE_MYSQL_HOST} --user=${DB_USER} --password=${DB_PASS} ${DUMP_OPTS} ${DB} ${TABLE} | ${DOCKER_CMD} mysql --host=${TARGET_MYSQL_HOST} --user=${DB_USER} --password=${DB_PASS} --init-command="SET SESSION FOREIGN_KEY_CHECKS=0; SET SESSION UNIQUE_CHECKS=0;" ${DB}
+	${DOCKER_CMD} mysqldump --host=${SOURCE_MYSQL_HOST} --user=${DB_USER} ${DUMP_OPTS} ${DB} ${TABLE} | ${DOCKER_CMD} mysql --host=${TARGET_MYSQL_HOST} --user=${DB_USER} --init-command="SET SESSION FOREIGN_KEY_CHECKS=0; SET SESSION UNIQUE_CHECKS=0;" ${DB}
 
 done
 echo "done."
