@@ -45,7 +45,7 @@ DB_PASS = $DB_PASS
 TABLES = $TABLES
 "
 
-DOCKER_CMD="docker run -i --rm mysql:8.0"
+DOCKER_CMD="docker run --rm mysql:8.0"
 DUMP_OPTS="--ignore-table=mysql.event --hex-blob --add-drop-table --single-transaction --skip-add-locks --no-tablespaces"
 
 # CHECK SOURCE_MYSQL_HOST if database exists
