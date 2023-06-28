@@ -47,7 +47,7 @@ TABLES = $TABLES
 
 test -t 1 && USE_TTY="-t"
 
-DOCKER_CMD="docker run ${USE_TTY} --rm mysql:8.0"
+DOCKER_CMD="docker run -i ${USE_TTY} --rm mysql:8.0"
 DUMP_OPTS="--ignore-table=mysql.event --hex-blob --add-drop-table --single-transaction --skip-add-locks --no-tablespaces"
 
 # CHECK SOURCE_MYSQL_HOST if database exists
